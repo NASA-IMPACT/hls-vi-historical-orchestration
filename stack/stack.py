@@ -2,6 +2,7 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
+    aws_iam,
     aws_s3,
 )
 from constructs import Construct
@@ -17,6 +18,14 @@ class HlsViStack(Stack):
         self, scope: Construct, id: str, settings: StackSettings, **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
+
+        # Apply IAM permission boundary to entire stack
+        boundary = aws_iam.ManagedPolicy.from_managed_policy_arn(
+            self,
+            "PermissionBoundary",
+            settings.GCC_IAM_PERMISSION_BOUNDARY_ARN,
+        )
+        aws_iam.PermissionsBoundary.of(self).apply(boundary)
 
         # vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
 

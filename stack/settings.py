@@ -11,6 +11,7 @@ class StackSettings(BaseSettings):
 
     GCC_ACCOUNT_ID: str
     GCC_ACCOUNT_REGION: str = "us-west-2"
+    GCC_IAM_PERMISSION_BOUNDARY_ARN: str
 
     VPC_ID: str
 
@@ -27,8 +28,8 @@ class StackSettings(BaseSettings):
     OUTPUT_BUCKET_NAME: str
 
     # AWS Batch processing system
-    AWS_BATCH_JOB_QUEUE_NAME: str
-    AWS_BATCH_INSTANCE_TYPES: list[str] = [
+    BATCH_JOB_QUEUE_NAME: str
+    BATCH_INSTANCE_TYPES: list[str] = [
         "m6i.xlarge",
         "m6i.2xlarge",
     ]
