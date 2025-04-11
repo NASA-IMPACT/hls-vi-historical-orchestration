@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Install package
+      - name: Install
         run: uv sync --all-groups
 
       - name: Run tests
@@ -41,6 +41,11 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: 3.12
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
 
       - name: Install
         run:
