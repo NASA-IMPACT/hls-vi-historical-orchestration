@@ -42,8 +42,11 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Install package
-        run: uv sync --group deploy
+      - name: Install
+        run:
+          uv sync --group deploy
+          npm install -g aws-cdk@v2.*
+          cdk --version
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
