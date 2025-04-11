@@ -19,7 +19,7 @@ class HlsViStack(Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
+        # vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
 
         self.processing_bucket = aws_s3.Bucket(
             self,
