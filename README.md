@@ -1,5 +1,7 @@
 # HLS Vegetation Indices (HLS-VI) Historical Orchestration
 
+
+
 ## Getting started
 
 This project uses `uv` to manage dependencies and virtual environments. To install this, please visit the
@@ -7,12 +9,26 @@ uv [installation documentation](https://docs.astral.sh/uv/getting-started/instal
 
 ### Testing
 
-TODO
+Run unit tests,
+```
+./scripts/test
+```
 
 ### Formatting and Linting
 
-TODO
+Run formatting,
+```
+./scripts/format
+```
+
+Run linting,
+```
+./scripts/lint
+```
 
 ### Deployment
 
-TODO
+To deploy with CDK,
+```
+uv run cdk deploy
+```
