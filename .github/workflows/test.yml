@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Install package
+      - name: Install test requirements
         run: uv sync --all-groups
 
       - name: Run tests

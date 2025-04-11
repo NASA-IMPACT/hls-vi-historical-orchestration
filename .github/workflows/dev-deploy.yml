@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Install
+      - name: Install test requirements
         run: uv sync --all-groups
 
       - name: Run tests
@@ -47,7 +47,7 @@ jobs:
         with:
           node-version: "lts/*"
 
-      - name: Install
+      - name: Install deploy requirements
         run: |
           uv sync --group deploy
           npm install -g aws-cdk@v2.*
