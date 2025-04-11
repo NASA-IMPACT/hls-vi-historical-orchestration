@@ -49,7 +49,7 @@ jobs:
           node-version: "lts/*"
 
       - name: Install
-        run:
+        run: |
           uv sync --group deploy
           npm install -g aws-cdk@v2.*
           cdk --version
