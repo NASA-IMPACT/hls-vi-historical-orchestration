@@ -35,6 +35,11 @@ class HlsViStack(Stack):
             "LpdaacGranuleBucket",
             bucket_name=settings.LPDAAC_GRANULE_BUCKET_NAME,
         )
+        self.lpdaac_metadata_bucket = aws_s3.Bucket.from_bucket_name(
+            self,
+            "LpdaacMetadataBucket",
+            bucket_name=settings.LPDAAC_METADATA_BUCKET_NAME,
+        )
 
         self.processing_bucket = aws_s3.Bucket(
             self,
@@ -65,3 +70,4 @@ class HlsViStack(Stack):
         self.processing_bucket.grant_read_write(self.processing_job.role)
         self.output_bucket.grant_read_write(self.processing_job.role)
         self.lpdaac_granule_bucket.grant_read(self.processing_job.role)
+        self.lpdaac_metadata_bucket.grant_read(self.processing_job.role)
