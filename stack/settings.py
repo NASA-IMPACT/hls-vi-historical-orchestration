@@ -7,7 +7,7 @@ class StackSettings(BaseSettings):
     """Deployment settings for HLS-VI historical processing."""
 
     STACK_NAME: str
-    STAGE: Literal["development", "production"]
+    STAGE: Literal["dev", "prod"]
 
     GCC_ACCOUNT_ID: str
     GCC_ACCOUNT_REGION: str = "us-west-2"

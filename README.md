@@ -32,3 +32,12 @@ To deploy with CDK,
 ```
 uv run cdk deploy
 ```
+
+You may consider pointing UV to a different `.env` file, e.g.,
+```
+uv run --env-file .env.dev -- cdk deploy
+```
+or using an environment variable,
+```
+UV_ENV_FILE=.env.dev uv run cdk deploy
+```

@@ -4,7 +4,7 @@ from settings import StackSettings
 from stack import HlsViStack
 
 
-settings = StackSettings(_env_file=".env")
+settings = StackSettings()
 
 app = App()
 stack = HlsViStack(
