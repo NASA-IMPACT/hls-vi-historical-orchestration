@@ -2,6 +2,7 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
+    aws_ec2,
     aws_iam,
     aws_s3,
 )
@@ -27,7 +28,13 @@ class HlsViStack(Stack):
         )
         aws_iam.PermissionsBoundary.of(self).apply(boundary)
 
-        # vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
+        self.vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
+
+        self.lpdaac_granule_bucket = aws_s3.Bucket.from_bucket_name(
+            self,
+            "LpdaacGranuleBucket",
+            bucket_name=settings.LPDAAC_GRANULE_BUCKET_NAME,
+        )
 
         self.processing_bucket = aws_s3.Bucket(
             self,
@@ -55,3 +62,6 @@ class HlsViStack(Stack):
 
         # AWS Batch processing job container
         self.processing_job = BatchJob(self, "ProcessingJob")
+        self.processing_bucket.grant_read_write(self.processing_job.role)
+        self.output_bucket.grant_read_write(self.processing_job.role)
+        self.lpdaac_granule_bucket.grant_read(self.processing_job.role)
