@@ -19,7 +19,7 @@ jobs:
           python-version: 3.12
 
       - name: Install package
-        run: uv sync --all-extras
+        run: uv sync --all-groups
 
       - name: Run tests
         run: ./scripts/test
