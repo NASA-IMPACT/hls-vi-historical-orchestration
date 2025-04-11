@@ -2,7 +2,6 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
-    aws_ec2,
     aws_s3,
 )
 from constructs import Construct
