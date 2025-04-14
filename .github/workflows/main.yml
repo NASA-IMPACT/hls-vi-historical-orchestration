@@ -12,8 +12,8 @@ on:
       - "*"
     paths:
       - ".github/workflows/*"
+      - "cdk/**/*"
       - "lambdas/**/*"
-      - "stack/**/*"
       - "tests/**/*"
       - "cdk.json"
       - "pyproject.toml"
@@ -28,8 +28,8 @@ on:
       - develop
     paths:
       - ".github/workflows/*"
+      - "cdk/**/*"
       - "lambdas/**/*"
-      - "stack/**/*"
       - "tests/**/*"
       - "cdk.json"
       - "pyproject.toml"

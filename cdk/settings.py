@@ -30,8 +30,10 @@ class StackSettings(BaseSettings):
     # Output bucket for HLS-VI output files
     OUTPUT_BUCKET_NAME: str
 
+    # ----- HLS-VI processing
     # AWS Batch processing system
     BATCH_JOB_QUEUE_NAME: str
+    # TODO: increase instance types allowed
     BATCH_INSTANCE_TYPES: list[str] = [
         "m6i.xlarge",
         "m6i.2xlarge",
