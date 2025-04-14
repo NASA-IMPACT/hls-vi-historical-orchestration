@@ -1,0 +1,35 @@
+[project]
+name = "hls-vi-historical-orchestration"
+version = "0.1.0"
+description = "Orchestration of the historical processing for the HLS-VI product."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.37.28",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "ruff>=0.11.4",
+]
+deploy = [
+    "aws-cdk-lib>=2.188.0",
+    "constructs>=10.4.2",
+    "pydantic-settings>=2.8.1",
+]
+
+[tool.pytest]
+testpaths = [
+    "tests"
+]
+
+[tool.ruff]
+fix = true
+line-length = 88
+
+[tool.mypy]
+files = ["cdk", "tests"]
+plugins = ["pydantic.mypy"]
