@@ -11,19 +11,19 @@ uv [installation documentation](https://docs.astral.sh/uv/getting-started/instal
 
 Run unit tests,
 ```
-./scripts/test
+scripts/test
 ```
 
 ### Formatting and Linting
 
 Run formatting,
 ```
-./scripts/format
+scripts/format
 ```
 
 Run linting,
 ```
-./scripts/lint
+scripts/lint
 ```
 
 ### Deployment
