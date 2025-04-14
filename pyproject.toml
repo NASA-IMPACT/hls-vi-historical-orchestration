@@ -36,5 +36,5 @@ per-file-ignores = { "__init__.py" = ["F401"] }
 
 
 [tool.mypy]
-files = ["stack", "tests"]
+files = ["cdk", "tests"]
 plugins = ["pydantic.mypy"]
