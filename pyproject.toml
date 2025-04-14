@@ -29,11 +29,6 @@ testpaths = [
 [tool.ruff]
 fix = true
 line-length = 88
-target-version = "py310"
-
-[tool.ruff.lint]
-per-file-ignores = { "__init__.py" = ["F401"] }
-
 
 [tool.mypy]
 files = ["cdk", "tests"]
