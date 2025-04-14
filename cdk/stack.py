@@ -5,10 +5,11 @@ from aws_cdk import (
     aws_ec2,
     aws_iam,
     aws_s3,
+    aws_ssm,
 )
 from constructs import Construct
 
-from hls_constructs import BatchJob
+from hls_constructs import BatchInfra, BatchJob
 from settings import StackSettings
 
 
@@ -28,8 +29,10 @@ class HlsViStack(Stack):
         )
         aws_iam.PermissionsBoundary.of(self).apply(boundary)
 
+        # ----- Networking
         self.vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
 
+        # ----- Buckets
         self.lpdaac_granule_bucket = aws_s3.Bucket.from_bucket_name(
             self,
             "LpdaacGranuleBucket",
@@ -65,8 +68,32 @@ class HlsViStack(Stack):
             bucket_name=settings.OUTPUT_BUCKET_NAME,
         )
 
-        # AWS Batch processing job container
-        self.processing_job = BatchJob(self, "ProcessingJob")
+        # ----- AWS Batch infrastructure
+        if settings.BATCH_IMAGE_ID is None:
+            batch_image_id = (
+                aws_ssm.StringParameter.from_string_parameter_attributes(
+                    self, "MCP_AMI", parameter_name="/mcp/amis/aml2-ecs"
+                ).string_value
+            )
+        else:
+            batch_image_id = settings.BATCH_IMAGE_ID
+
+        self.batch_infra = BatchInfra(
+            self,
+            "BatchInfra",
+            vpc=self.vpc,
+            image_id=batch_image_id,
+            max_vcpu=settings.BATCH_MAX_VCPU,
+        )
+
+        # ----- AWS Batch processing job container
+        self.processing_job = BatchJob(
+            self,
+            "ProcessingJob",
+            container_ecr_uri=settings.PROCESSING_CONTAINER_ECR_URI,
+            vcpu=settings.PROCESSING_JOB_VCPU,
+            memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
+        )
         self.processing_bucket.grant_read_write(self.processing_job.role)
         self.output_bucket.grant_read_write(self.processing_job.role)
         self.lpdaac_granule_bucket.grant_read(self.processing_job.role)
