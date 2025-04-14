@@ -24,7 +24,7 @@ class HlsViStack(Stack):
         boundary = aws_iam.ManagedPolicy.from_managed_policy_arn(
             self,
             "PermissionBoundary",
-            settings.GCC_IAM_PERMISSION_BOUNDARY_ARN,
+            settings.MCP_IAM_PERMISSION_BOUNDARY_ARN,
         )
         aws_iam.PermissionsBoundary.of(self).apply(boundary)
 

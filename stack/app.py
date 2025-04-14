@@ -11,7 +11,7 @@ stack = HlsViStack(
     app,
     settings.STACK_NAME,
     settings,
-    env={"account": settings.GCC_ACCOUNT_ID, "region": settings.GCC_ACCOUNT_REGION},
+    env={"account": settings.MCP_ACCOUNT_ID, "region": settings.MCP_ACCOUNT_REGION},
 )
 
 app.synth()

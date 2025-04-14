@@ -9,12 +9,13 @@ class StackSettings(BaseSettings):
     STACK_NAME: str
     STAGE: Literal["dev", "prod"]
 
-    GCC_ACCOUNT_ID: str
-    GCC_ACCOUNT_REGION: str = "us-west-2"
-    GCC_IAM_PERMISSION_BOUNDARY_ARN: str
+    MCP_ACCOUNT_ID: str
+    MCP_ACCOUNT_REGION: str = "us-west-2"
+    MCP_IAM_PERMISSION_BOUNDARY_ARN: str
 
     VPC_ID: str
 
+    # ----- Buckets
     # Job processing bucket for state (inventories, failures, etc)
     PROCESSING_BUCKET_NAME: str
     PROCESSING_BUCKET_INVENTORY_PREFIX: str = "inventories"
