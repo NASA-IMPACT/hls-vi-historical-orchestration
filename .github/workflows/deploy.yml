@@ -1,45 +1,39 @@
-name: deploy dev
+name: Deploy
 
 on:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      PYTHON_VERSION:
+        required: true
+        type: string
 
 env:
   AWS_DEFAULT_REGION: us-west-2
 
+defaults:
+  run:
+    shell: bash
+
 # See https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services#updating-your-github-actions-workflow
 permissions:
   id-token: write # required for requesting the JWT
-  contents: read  # required for actions/checkout
+  contents: read # required for actions/checkout
 
 jobs:
-  unit-tests:
+  deployment:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install UV
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.12
-
-      - name: Install test requirements
-        run: uv sync --all-groups
-
-      - name: Run tests
-        run: ./scripts/test
-
-  dev-deployment:
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-    environment:
-      name: dev
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v5
-        with:
-          python-version: 3.12
+          python-version: "${{ inputs.PYTHON_VERSION }}"
 
       - name: Install Node
         uses: actions/setup-node@v4
@@ -79,5 +73,5 @@ jobs:
             jq -r <<<"$VARS_JSON" 'to_entries|map("\(.key)=\(.value)\u0000")[]'
           )
 
-      - name: Deploy
+      - name: Deploy to ${{ inputs.environment }}
         run: uv run cdk deploy --require-approval never
