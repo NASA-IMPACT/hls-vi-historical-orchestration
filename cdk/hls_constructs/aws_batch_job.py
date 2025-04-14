@@ -8,10 +8,10 @@ class BatchJob(Construct):
     def __init__(
         self,
         scope: Construct,
-        id: str,
+        construct_id: str,
         **kwargs,
     ):
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, construct_id, **kwargs)
 
         self.role = aws_iam.Role(
             self,

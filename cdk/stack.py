@@ -16,9 +16,9 @@ class HlsViStack(Stack):
     """HLS-VI historical processing CDK stack."""
 
     def __init__(
-        self, scope: Construct, id: str, settings: StackSettings, **kwargs
+        self, scope: Construct, stack_id: str, settings: StackSettings, **kwargs
     ) -> None:
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, stack_id, **kwargs)
 
         # Apply IAM permission boundary to entire stack
         boundary = aws_iam.ManagedPolicy.from_managed_policy_arn(
