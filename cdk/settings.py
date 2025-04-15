@@ -51,3 +51,6 @@ class StackSettings(BaseSettings):
     # Job feeder
     FEEDER_MAX_ACTIVE_JOBS: int = 10_000
     FEEDER_JOBS_PER_ARRAY_TASK: int = 1_000
+
+    # Job retry system
+    JOB_RETRY_FAILURE_QUEUE_NAME: str

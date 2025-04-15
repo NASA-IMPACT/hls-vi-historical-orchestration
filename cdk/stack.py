@@ -1,15 +1,25 @@
+import os
+
 from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
     aws_ec2,
+    aws_events,
+    aws_events_targets,
     aws_iam,
+    aws_lambda,
     aws_s3,
+    aws_sqs,
 )
 from constructs import Construct
 
 from hls_constructs import BatchInfra, BatchJob
 from settings import StackSettings
+
+LAMBDA_EXCLUDE = [
+    "**/*.egg-info",
+]
 
 
 class HlsViStack(Stack):
@@ -28,10 +38,14 @@ class HlsViStack(Stack):
         )
         aws_iam.PermissionsBoundary.of(self).apply(boundary)
 
-        # ----- Networking
+        # ----------------------------------------------------------------------
+        # Networking
+        # ----------------------------------------------------------------------
         self.vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
 
-        # ----- Buckets
+        # ----------------------------------------------------------------------
+        # Buckets
+        # ----------------------------------------------------------------------
         self.lpdaac_granule_bucket = aws_s3.Bucket.from_bucket_name(
             self,
             "LpdaacGranuleBucket",
@@ -41,6 +55,12 @@ class HlsViStack(Stack):
             self,
             "LpdaacMetadataBucket",
             bucket_name=settings.LPDAAC_METADATA_BUCKET_NAME,
+        )
+
+        self.output_bucket = aws_s3.Bucket.from_bucket_name(
+            self,
+            "OutputBucket",
+            bucket_name=settings.OUTPUT_BUCKET_NAME,
         )
 
         self.processing_bucket = aws_s3.Bucket(
@@ -60,14 +80,14 @@ class HlsViStack(Stack):
                 ),
             ],
         )
+        # ----------------------------------------------------------------------
+        # Inventory progress tracker
+        # ----------------------------------------------------------------------
+        # TODO: add param store entry for tracking progress
 
-        self.output_bucket = aws_s3.Bucket.from_bucket_name(
-            self,
-            "OutputBucket",
-            bucket_name=settings.OUTPUT_BUCKET_NAME,
-        )
-
-        # ----- AWS Batch infrastructure
+        # ----------------------------------------------------------------------
+        # AWS Batch infrastructure
+        # ----------------------------------------------------------------------
         self.batch_infra = BatchInfra(
             self,
             "HLS-VI-Infra",
@@ -75,7 +95,9 @@ class HlsViStack(Stack):
             max_vcpu=settings.BATCH_MAX_VCPU,
         )
 
-        # ----- AWS Batch processing job container
+        # ----------------------------------------------------------------------
+        # HLS-VI processing compute job
+        # ----------------------------------------------------------------------
         self.processing_job = BatchJob(
             self,
             "HLS-VI-Processing",
@@ -88,3 +110,131 @@ class HlsViStack(Stack):
         self.output_bucket.grant_read_write(self.processing_job.role)
         self.lpdaac_granule_bucket.grant_read(self.processing_job.role)
         self.lpdaac_metadata_bucket.grant_read(self.processing_job.role)
+
+        # ----------------------------------------------------------------------
+        # Queue feeder
+        # ----------------------------------------------------------------------
+        self.queue_feeder_lambda = aws_lambda.Function(
+            self,
+            "QueueFeederHandler",
+            code=aws_lambda.Code.from_asset(
+                os.path.join("lambdas"),
+                exclude=LAMBDA_EXCLUDE,
+            ),
+            handler="queue_feeder.handler",
+            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            memory_size=512,
+            timeout=Duration.minutes(10),
+            environment={
+                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
+            },
+        )
+
+        self.processing_bucket.grant_read(self.queue_feeder_lambda)
+
+        self.processing_job.job_def.grant_submit_job(
+            self.queue_feeder_lambda.role, self.batch_infra.queue
+        )
+        self.queue_feeder_lambda.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=[self.batch_infra.queue.job_queue_arn],
+                actions=[
+                    "batch:ListJobs",
+                ],
+            )
+        )
+
+        # ----------------------------------------------------------------------
+        # Job monitor & retry system
+        # ----------------------------------------------------------------------
+
+        # Events from AWS Batch "job state change events" in our processing queue
+        # Ref: https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html
+        self.processing_job_events_rule = aws_events.Rule(
+            self,
+            "ProcessingJobEventsRule",
+            event_pattern=aws_events.EventPattern(
+                source=["aws.batch"],
+                detail={
+                    "jobQueue": [self.batch_infra.queue.job_queue_arn],
+                    "status": ["SUCCEEDED", "FAILED"],
+                },
+            ),
+        )
+
+        self.job_retry_failure_queue = aws_sqs.Queue(
+            self,
+            "JobRetryFailureQueue",
+            queue_name=settings.JOB_RETRY_FAILURE_QUEUE_NAME,
+            retention_period=Duration.days(14),
+            enforce_ssl=True,
+            encryption=aws_sqs.QueueEncryption.SQS_MANAGED,
+        )
+
+        self.job_monitor_lambda = aws_lambda.Function(
+            self,
+            "JobMonitorHandler",
+            code=aws_lambda.Code.from_asset(
+                os.path.join("lambdas"),
+                exclude=LAMBDA_EXCLUDE,
+            ),
+            handler="job_monitor.handler",
+            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            memory_size=256,
+            timeout=Duration.minutes(1),
+            environment={
+                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "PROCESSING_BUCKET_PREFIX": "logs",
+                "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
+                "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_failure_queue.queue_name,
+            },
+        )
+
+        self.processing_job_events_rule.add_target(
+            aws_events_targets.LambdaFunction(
+                handler=self.job_monitor_lambda,
+                retry_attempts=3,
+            )
+        )
+
+        self.processing_bucket.grant_read_write(
+            self.queue_feeder_lambda, objects_key_pattern="logs/*"
+        )
+        self.job_retry_failure_queue.grant_send_messages(self.job_monitor_lambda)
+
+        # ----------------------------------------------------------------------
+        # Requeuer
+        # ----------------------------------------------------------------------
+        self.job_requeuer_lambda = aws_lambda.Function(
+            self,
+            "JobRequeuerHandler",
+            code=aws_lambda.Code.from_asset(
+                os.path.join("lambdas"),
+                exclude=LAMBDA_EXCLUDE,
+            ),
+            handler="job_requeuer.handler",
+            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            memory_size=256,
+            timeout=Duration.minutes(1),
+            environment={
+                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
+                "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_failure_queue.queue_name,
+            },
+        )
+        self.job_requeuer_lambda.add_event_source_mapping(
+            "JobRequeuerRetryQueueTrigger",
+            batch_size=100,
+            max_batching_window=Duration.minutes(1),
+            report_batch_item_failures=True,
+            event_source_arn=self.job_retry_failure_queue.queue_arn,
+        )
+
+        self.processing_bucket.grant_read_write(
+            self.job_requeuer_lambda, objects_key_pattern="logs/*"
+        )
+        self.processing_job.job_def.grant_submit_job(
+            self.job_requeuer_lambda, self.batch_infra.queue
+        )
