@@ -5,7 +5,6 @@ from aws_cdk import (
     aws_ec2,
     aws_iam,
     aws_s3,
-    aws_ssm,
 )
 from constructs import Construct
 
@@ -69,30 +68,21 @@ class HlsViStack(Stack):
         )
 
         # ----- AWS Batch infrastructure
-        if settings.BATCH_IMAGE_ID is None:
-            batch_image_id = (
-                aws_ssm.StringParameter.from_string_parameter_attributes(
-                    self, "MCP_AMI", parameter_name="/mcp/amis/aml2-ecs"
-                ).string_value
-            )
-        else:
-            batch_image_id = settings.BATCH_IMAGE_ID
-
         self.batch_infra = BatchInfra(
             self,
-            "BatchInfra",
+            "HLS-VI-Infra",
             vpc=self.vpc,
-            image_id=batch_image_id,
             max_vcpu=settings.BATCH_MAX_VCPU,
         )
 
         # ----- AWS Batch processing job container
         self.processing_job = BatchJob(
             self,
-            "ProcessingJob",
+            "HLS-VI-Processing",
             container_ecr_uri=settings.PROCESSING_CONTAINER_ECR_URI,
             vcpu=settings.PROCESSING_JOB_VCPU,
             memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
+            log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
         )
         self.processing_bucket.grant_read_write(self.processing_job.role)
         self.output_bucket.grant_read_write(self.processing_job.role)

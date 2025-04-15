@@ -1,4 +1,4 @@
-from aws_cdk import Size, aws_batch, aws_ecs, aws_iam
+from aws_cdk import Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
 
 
@@ -12,9 +12,17 @@ class BatchJob(Construct):
         container_ecr_uri: str,
         vcpu: int,
         memory_mb: int,
+        log_group_name: str,
         **kwargs,
     ):
         super().__init__(scope, construct_id, **kwargs)
+
+        # TODO: add logGroup and wire up to logConfiguration for job def
+        self.log_group = aws_logs.LogGroup(
+            self,
+            "JobLogGroup",
+            log_group_name=log_group_name,
+        )
 
         self.role = aws_iam.Role(
             self,
@@ -31,6 +39,10 @@ class BatchJob(Construct):
                 image=aws_ecs.ContainerImage.from_registry(container_ecr_uri),
                 cpu=vcpu,
                 memory=Size.mebibytes(memory_mb),
+                logging=aws_ecs.LogDriver.aws_logs(
+                    stream_prefix="job",
+                    log_group=self.log_group,
+                ),
             ),
             retry_attempts=3,
             retry_strategies=[

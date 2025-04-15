@@ -35,14 +35,15 @@ class StackSettings(BaseSettings):
     # Job vCPU and memory limits
     PROCESSING_JOB_VCPU: int = 1
     PROCESSING_JOB_MEMORY_MB: int = 4_000
+    # Custom log group (otherwise they'll land in the catch-all AWS Batch log group)
+    PROCESSING_LOG_GROUP_NAME: str
 
-    # AMI image used by Batch workers - if None, lookup AMI via SSM
-    BATCH_IMAGE_ID: str | None = None
     # TODO: increase instance types allowed
     # Cluster instance types
     BATCH_INSTANCE_TYPES: list[str] = [
         "m6i.xlarge",
         "m6i.2xlarge",
+        "m6i.4xlarge",
     ]
     # Cluster scaling max
     BATCH_MAX_VCPU: int = 10
