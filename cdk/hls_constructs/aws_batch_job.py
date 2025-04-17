@@ -17,7 +17,6 @@ class BatchJob(Construct):
     ):
         super().__init__(scope, construct_id, **kwargs)
 
-        # TODO: add logGroup and wire up to logConfiguration for job def
         self.log_group = aws_logs.LogGroup(
             self,
             "JobLogGroup",

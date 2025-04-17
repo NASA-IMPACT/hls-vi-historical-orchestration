@@ -49,6 +49,7 @@ class StackSettings(BaseSettings):
     BATCH_MAX_VCPU: int = 10
 
     # Job feeder
+    FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES: int = 60
     FEEDER_MAX_ACTIVE_JOBS: int = 10_000
     FEEDER_JOBS_PER_ARRAY_TASK: int = 1_000
 

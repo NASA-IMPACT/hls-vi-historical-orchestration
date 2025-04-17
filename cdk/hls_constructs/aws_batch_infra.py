@@ -9,7 +9,7 @@ class BatchInfra(Construct):
         self,
         scope: Construct,
         construct_id: str,
-        vpc: aws_ec2.Vpc,
+        vpc: aws_ec2.IVpc,
         max_vcpu: int,
         **kwargs,
     ):

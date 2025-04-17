@@ -1,4 +1,7 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass
 
 
 @dataclass
@@ -14,3 +17,21 @@ class GranuleProcessingEvent:
             "granule_id": self.granule_id,
             "attempt": str(self.attempt),
         }
+
+
+@dataclass
+class InventoryProgressTracker:
+    """Tracks our progression through a granule inventory file"""
+
+    # key to the inventory file
+    inventory: str
+    # how many granules (lines of the file) have we submitted?
+    submitted_count: int
+
+    def to_json(self) -> str:
+        """Convert to JSON for storage in SSM"""
+        return json.dumps(asdict(self))
+
+    def from_json(cls, json_str: str) -> InventoryProgressTracker:
+        """Parse from JSON"""
+        return cls(**json.loads(json_str))

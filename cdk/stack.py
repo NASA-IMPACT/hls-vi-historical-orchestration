@@ -80,10 +80,6 @@ class HlsViStack(Stack):
                 ),
             ],
         )
-        # ----------------------------------------------------------------------
-        # Inventory progress tracker
-        # ----------------------------------------------------------------------
-        # TODO: add param store entry for tracking progress
 
         # ----------------------------------------------------------------------
         # AWS Batch infrastructure
@@ -125,45 +121,53 @@ class HlsViStack(Stack):
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=512,
             timeout=Duration.minutes(10),
+            reserved_concurrent_executions=1,
             environment={
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
             },
         )
 
-        self.processing_bucket.grant_read(self.queue_feeder_lambda)
-
-        self.processing_job.job_def.grant_submit_job(
-            self.queue_feeder_lambda.role, self.batch_infra.queue
+        self.processing_bucket.grant_read_write(
+            self.queue_feeder_lambda,
+            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}/*",
         )
+
         self.queue_feeder_lambda.add_to_role_policy(
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
-                resources=[self.batch_infra.queue.job_queue_arn],
+                resources=[
+                    self.batch_infra.queue.job_queue_arn,
+                    self.processing_job.job_def.job_definition_arn,
+                ],
                 actions=[
                     "batch:ListJobs",
+                    "batch:SubmitJob",
                 ],
             )
+        )
+
+        # Schedule queue feeder
+        self.queue_feeder_schedule = aws_events.Rule(
+            self,
+            "QueueFeederSchedule",
+            schedule=aws_events.Schedule.rate(
+                Duration.minutes(settings.FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES),
+            ),
+            targets=[
+                aws_events_targets.LambdaFunction(
+                    handler=self.queue_feeder_lambda,
+                    retry_attempts=3,
+                )
+            ],
         )
 
         # ----------------------------------------------------------------------
         # Job monitor & retry system
         # ----------------------------------------------------------------------
 
-        # Events from AWS Batch "job state change events" in our processing queue
-        # Ref: https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html
-        self.processing_job_events_rule = aws_events.Rule(
-            self,
-            "ProcessingJobEventsRule",
-            event_pattern=aws_events.EventPattern(
-                source=["aws.batch"],
-                detail={
-                    "jobQueue": [self.batch_infra.queue.job_queue_arn],
-                    "status": ["SUCCEEDED", "FAILED"],
-                },
-            ),
-        )
-
+        # Queue for failed AWS Batch processing jobs
         self.job_retry_failure_queue = aws_sqs.Queue(
             self,
             "JobRetryFailureQueue",
@@ -186,23 +190,37 @@ class HlsViStack(Stack):
             timeout=Duration.minutes(1),
             environment={
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
-                "PROCESSING_BUCKET_PREFIX": "logs",
+                "PROCESSING_BUCKET_FAILURE_PREFIX": settings.PROCESSING_BUCKET_FAILURE_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_failure_queue.queue_name,
             },
         )
 
-        self.processing_job_events_rule.add_target(
-            aws_events_targets.LambdaFunction(
-                handler=self.job_monitor_lambda,
-                retry_attempts=3,
-            )
-        )
-
         self.processing_bucket.grant_read_write(
-            self.queue_feeder_lambda, objects_key_pattern="logs/*"
+            self.queue_feeder_lambda,
+            objects_key_pattern=f"{settings.PROCESSING_BUCKET_FAILURE_PREFIX}/*",
         )
         self.job_retry_failure_queue.grant_send_messages(self.job_monitor_lambda)
+
+        # Events from AWS Batch "job state change events" in our processing queue
+        # Ref: https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html
+        self.processing_job_events_rule = aws_events.Rule(
+            self,
+            "ProcessingJobEventsRule",
+            event_pattern=aws_events.EventPattern(
+                source=["aws.batch"],
+                detail={
+                    "jobQueue": [self.batch_infra.queue.job_queue_arn],
+                    "status": ["SUCCEEDED", "FAILED"],
+                },
+            ),
+            targets=[
+                aws_events_targets.LambdaFunction(
+                    handler=self.job_monitor_lambda,
+                    retry_attempts=3,
+                )
+            ],
+        )
 
         # ----------------------------------------------------------------------
         # Requeuer
@@ -224,17 +242,19 @@ class HlsViStack(Stack):
                 "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_failure_queue.queue_name,
             },
         )
-        self.job_requeuer_lambda.add_event_source_mapping(
-            "JobRequeuerRetryQueueTrigger",
-            batch_size=100,
-            max_batching_window=Duration.minutes(1),
-            report_batch_item_failures=True,
-            event_source_arn=self.job_retry_failure_queue.queue_arn,
-        )
 
         self.processing_bucket.grant_read_write(
             self.job_requeuer_lambda, objects_key_pattern="logs/*"
         )
         self.processing_job.job_def.grant_submit_job(
             self.job_requeuer_lambda, self.batch_infra.queue
+        )
+
+        # Requeuer consumes from queue that the "job monitor" publishes to
+        self.job_requeuer_lambda.add_event_source_mapping(
+            "JobRequeuerRetryQueueTrigger",
+            batch_size=100,
+            max_batching_window=Duration.minutes(1),
+            report_batch_item_failures=True,
+            event_source_arn=self.job_retry_failure_queue.queue_arn,
         )
