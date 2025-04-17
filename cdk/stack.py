@@ -100,6 +100,7 @@ class HlsViStack(Stack):
             container_ecr_uri=settings.PROCESSING_CONTAINER_ECR_URI,
             vcpu=settings.PROCESSING_JOB_VCPU,
             memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
+            retry_attempts=settings.PROCESSING_JOB_RETRY_ATTEMPTS,
             log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
         )
         self.processing_bucket.grant_read_write(self.processing_job.role)
@@ -211,8 +212,16 @@ class HlsViStack(Stack):
             event_pattern=aws_events.EventPattern(
                 source=["aws.batch"],
                 detail={
+                    # only retry jobs from our queue and job definition that failed
+                    # on their last attempt
                     "jobQueue": [self.batch_infra.queue.job_queue_arn],
-                    "status": ["SUCCEEDED", "FAILED"],
+                    "jobDefinition": [
+                        {
+                            "wildcard": f"*{self.processing_job.job_def.job_definition_name}*"
+                        },
+                    ],
+                    "status": ["FAILED"],
+                    "retryStrategy.attempts": [settings.PROCESSING_JOB_RETRY_ATTEMPTS],
                 },
             ),
             targets=[

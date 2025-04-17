@@ -12,6 +12,7 @@ class BatchJob(Construct):
         container_ecr_uri: str,
         vcpu: int,
         memory_mb: int,
+        retry_attempts: int,
         log_group_name: str,
         **kwargs,
     ):
@@ -43,7 +44,7 @@ class BatchJob(Construct):
                     log_group=self.log_group,
                 ),
             ),
-            retry_attempts=3,
+            retry_attempts=retry_attempts,
             retry_strategies=[
                 aws_batch.RetryStrategy.of(
                     aws_batch.Action.EXIT, aws_batch.Reason.CANNOT_PULL_CONTAINER

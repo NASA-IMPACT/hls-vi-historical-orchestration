@@ -37,6 +37,8 @@ class StackSettings(BaseSettings):
     PROCESSING_JOB_MEMORY_MB: int = 4_000
     # Custom log group (otherwise they'll land in the catch-all AWS Batch log group)
     PROCESSING_LOG_GROUP_NAME: str
+    # Number of internal AWS Batch job retries
+    PROCESSING_JOB_RETRY_ATTEMPTS: int = 3
 
     # TODO: increase instance types allowed
     # Cluster instance types
@@ -48,10 +50,13 @@ class StackSettings(BaseSettings):
     # Cluster scaling max
     BATCH_MAX_VCPU: int = 10
 
-    # Job feeder
+    # ----- Job feeder
     FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES: int = 60
     FEEDER_MAX_ACTIVE_JOBS: int = 10_000
     FEEDER_JOBS_PER_ARRAY_TASK: int = 1_000
 
-    # Job retry system
+    # ----- Job retry system
+    # Send failed AWS Batch jobs to this queue
     JOB_RETRY_FAILURE_QUEUE_NAME: str
+    # Give up requeueing after N attempts
+    JOB_RETRY_MAX_ATTEMPTS: int = 3
