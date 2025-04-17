@@ -173,6 +173,7 @@ class HlsViStack(Stack):
             "JobRetryFailureQueue",
             queue_name=settings.JOB_RETRY_FAILURE_QUEUE_NAME,
             retention_period=Duration.days(14),
+            visibility_timeout=Duration.minutes(2),
             enforce_ssl=True,
             encryption=aws_sqs.QueueEncryption.SQS_MANAGED,
         )
