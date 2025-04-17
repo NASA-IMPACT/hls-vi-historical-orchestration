@@ -249,6 +249,7 @@ class HlsViStack(Stack):
         self.processing_job.job_def.grant_submit_job(
             self.job_requeuer_lambda, self.batch_infra.queue
         )
+        self.job_retry_failure_queue.grant_consume_messages(self.job_requeuer_lambda)
 
         # Requeuer consumes from queue that the "job monitor" publishes to
         self.job_requeuer_lambda.add_event_source_mapping(
