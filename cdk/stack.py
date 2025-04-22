@@ -196,6 +196,9 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET_FAILURE_PREFIX": settings.PROCESSING_BUCKET_FAILURE_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_failure_queue.queue_name,
+                "PROCESSING_JOB_RETRY_ATTEMPTS": str(
+                    settings.PROCESSING_JOB_RETRY_ATTEMPTS
+                ),
             },
         )
 
