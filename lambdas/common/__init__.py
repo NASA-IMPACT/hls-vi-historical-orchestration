@@ -1,14 +1,14 @@
 from .models import GranuleProcessingEvent
 from .granule_inventory import (
-    InventoryProgressTracker,
-    InventoriesProgress,
+    InventoryTracking,
+    InventoryTrackerService,
     InventoryProgress,
 )
 
 
 __all__ = [
     "GranuleProcessingEvent",
-    "InventoriesProgress",
+    "InventoryTracking",
     "InventoryProgress",
-    "InventoryProgressTracker",
+    "InventoryTrackerService",
 ]
