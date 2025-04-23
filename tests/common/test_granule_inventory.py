@@ -18,7 +18,9 @@ class TestInventoryRow:
         line = r"HLS.S30.T01FBE.2022224T215909.v2.0 2022-08-12\ 21:59:50.112+00 completed t"
         row = InventoryRow.parse_line(line)
         assert row.granule_id == "HLS.S30.T01FBE.2022224T215909.v2.0"
-        assert row.start_datetime == dt.datetime(2022, 8, 12, 21, 59, 50, 112000, tzinfo=dt.UTC)
+        assert row.start_datetime == dt.datetime(
+            2022, 8, 12, 21, 59, 50, 112000, tzinfo=dt.UTC
+        )
         assert row.status == "completed"
         assert row.published
 
@@ -31,7 +33,9 @@ class TestInventoryRow:
         assert row.published is False
 
     def test_parse_line_failed(self):
-        line = r"HLS.S30.T35MNT.2024365T082341.v2.0 2024-12-30\ 08:40:54.243+00 failed f"
+        line = (
+            r"HLS.S30.T35MNT.2024365T082341.v2.0 2024-12-30\ 08:40:54.243+00 failed f"
+        )
         row = InventoryRow.parse_line(line)
         assert row.granule_id == "HLS.S30.T35MNT.2024365T082341.v2.0"
         assert isinstance(row.start_datetime, dt.datetime)
@@ -97,7 +101,9 @@ class TestInventoryTrackerService:
         )
         return key
 
-    def test_service_list_inventories(self, service: InventoryTrackerService, inventory: str):
+    def test_service_list_inventories(
+        self, service: InventoryTrackerService, inventory: str
+    ):
         """Test listing inventory files"""
         inventories = service._list_inventories()
         assert len(inventories) == 1

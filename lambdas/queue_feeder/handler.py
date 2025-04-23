@@ -1,4 +1,5 @@
 """HLS-VI historical processing job submission."""
+
 from common import GranuleProcessingEvent  # noqa: F401
 
 

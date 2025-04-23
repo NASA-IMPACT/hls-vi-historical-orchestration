@@ -1,5 +1,6 @@
 """HLS-VI historical processing job monitor."""
-from common import GranuleProcessingEvent  # noqa: F401
+
+from common import AwsBatchJobDetail
 
 
 def handler(event, context):
