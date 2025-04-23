@@ -7,6 +7,28 @@ from dataclasses import dataclass, field
 
 if typing.TYPE_CHECKING:
     from mypy_boto3_batch.client import BatchClient
+    from mypy_boto3_batch.type_defs import JobDetailTypeDef
+
+
+@dataclass
+class AwsBatchJobDetail:
+    """Container for accessing properties about an AWS Batch job details"""
+
+    detail: JobDetailTypeDef
+
+    @property
+    def attempts(self) -> int:
+        """Return the number of attempts from this job"""
+        return len(self.detail.get("attempts", []))
+
+    @property
+    def exit_code(self) -> int | None:
+        """Get the exit code, if it exists
+
+        Issues from infrastructure (i.e., SPOT interruptions) will not
+        have an exit code.
+        """
+        return self.detail.get("container", {}).get("exitCode")
 
 
 @dataclass
