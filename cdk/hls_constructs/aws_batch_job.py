@@ -47,10 +47,14 @@ class BatchJob(Construct):
             retry_attempts=retry_attempts,
             retry_strategies=[
                 aws_batch.RetryStrategy.of(
-                    aws_batch.Action.EXIT, aws_batch.Reason.CANNOT_PULL_CONTAINER
+                    aws_batch.Action.RETRY, aws_batch.Reason.CANNOT_PULL_CONTAINER
                 ),
                 aws_batch.RetryStrategy.of(
-                    aws_batch.Action.EXIT, aws_batch.Reason.SPOT_INSTANCE_RECLAIMED
+                    aws_batch.Action.RETRY, aws_batch.Reason.SPOT_INSTANCE_RECLAIMED
+                ),
+                aws_batch.RetryStrategy.of(
+                    aws_batch.Action.EXIT,
+                    aws_batch.Reason.custom(on_reason="*"),
                 ),
             ],
         )
