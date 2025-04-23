@@ -221,7 +221,6 @@ class HlsViStack(Stack):
                         },
                     ],
                     "status": ["FAILED"],
-                    "retryStrategy.attempts": [settings.PROCESSING_JOB_RETRY_ATTEMPTS],
                 },
             ),
             targets=[
