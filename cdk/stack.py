@@ -5,6 +5,7 @@ import jsii
 from aws_cdk import (
     Duration,
     RemovalPolicy,
+    Size,
     Stack,
     aws_ec2,
     aws_events,
@@ -12,6 +13,7 @@ from aws_cdk import (
     aws_iam,
     aws_lambda,
     aws_s3,
+    aws_ssm,
     aws_sqs,
 )
 from aws_cdk import aws_lambda_python_alpha as aws_lambda_python
@@ -39,17 +41,31 @@ LAMBDA_EXCLUDE = [
 
 @jsii.implements(aws_lambda_python.ICommandHooks)
 class UvHooks:
+    """Build hooks to setup UV and export a requirements.txt for building
+
+    This will be unnecessary after UV support is built-in in aws-lambda-python-alpha,
+    https://github.com/aws/aws-cdk/issues/31238
+    """
+
+    def __init__(self, groups: list[str] | None = None):
+        self.groups = groups
+
     def after_bundling(self, input_dir: str, output_dir: str) -> list[str]:
         return []
 
     def before_bundling(self, input_dir: str, output_dir: str) -> list[str]:
+        if self.groups:
+            groups_arg = " ".join([f"--group {group}" for group in self.groups])
+        else:
+            groups_arg = " "
+
         return [
             "python -m venv uv_venv",
             ". uv_venv/bin/activate",
             "pip install uv",
             "export UV_CACHE_DIR=/tmp",
-            "uv export --frozen --no-dev --no-editable -o requirements.txt",
-            "rm -rf uv_venv"
+            f"uv export {groups_arg} --frozen --no-dev --no-default-groups --no-editable -o requirements.txt",
+            "rm -rf uv_venv",
         ]
 
 
@@ -140,6 +156,52 @@ class HlsViStack(Stack):
         self.lpdaac_public_bucket.grant_read(self.processing_job.role)
 
         # ----------------------------------------------------------------------
+        # Lambda layers
+        # ----------------------------------------------------------------------
+        # This layer has a really small build of Pandas/NumPy/PyArrow that was
+        # built by the "awswrangler" (aka sdk-for-pandas) project
+        sdk_for_pandas_layer_arn = aws_ssm.StringParameter.from_string_parameter_attributes(
+            self,
+            "AwsSdkPandasLayerArn",
+            parameter_name="/aws/service/aws-sdk-pandas/3.11.0/py3.12/x86_64/layer-arn",
+        ).string_value
+        sdk_for_pandas_layer = (
+            aws_lambda_python.PythonLayerVersion.from_layer_version_arn(
+                self,
+                "AwsSdkPandasLayer",
+                sdk_for_pandas_layer_arn,
+            )
+        )
+
+        # ----------------------------------------------------------------------
+        # One off inventory conversion Lambda
+        # ----------------------------------------------------------------------
+        self.inventory_converter_lambda = aws_lambda_python.PythonFunction(
+            self,
+            "InventoryConverterHandler",
+            entry=os.path.join("."),
+            index="lambdas/inventory_converter/handler.py",
+            handler="handler",
+            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            memory_size=1024,
+            timeout=Duration.minutes(10),
+            environment={
+                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
+            },
+            layers=[sdk_for_pandas_layer],
+            bundling=aws_lambda_python.BundlingOptions(
+                command_hooks=UvHooks(groups=None),
+                asset_excludes=LAMBDA_EXCLUDE,
+            ),
+            ephemeral_storage_size=Size.mebibytes(1500),
+        )
+        self.processing_bucket.grant_read_write(
+            self.inventory_converter_lambda,
+            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}/*",
+        )
+
+        # ----------------------------------------------------------------------
         # Queue feeder
         # ----------------------------------------------------------------------
         self.queue_feeder_lambda = aws_lambda_python.PythonFunction(
@@ -157,6 +219,7 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
             },
+            layers=[sdk_for_pandas_layer],
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),
                 asset_excludes=LAMBDA_EXCLUDE,

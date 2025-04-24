@@ -1,46 +1,14 @@
-import datetime as dt
+from pathlib import Path
 
+import pandas as pd
 import pytest
 from mypy_boto3_s3.client import S3Client
 
 from common.granule_inventory import (
-    InventoryRow,
     InventoryProgress,
     InventoryTracking,
     InventoryTrackerService,
 )
-
-
-class TestInventoryRow:
-    """Test InventoryRow"""
-
-    def test_parse_line_completed(self):
-        line = r"HLS.S30.T01FBE.2022224T215909.v2.0 2022-08-12\ 21:59:50.112+00 completed t"
-        row = InventoryRow.parse_line(line)
-        assert row.granule_id == "HLS.S30.T01FBE.2022224T215909.v2.0"
-        assert row.start_datetime == dt.datetime(
-            2022, 8, 12, 21, 59, 50, 112000, tzinfo=dt.UTC
-        )
-        assert row.status == "completed"
-        assert row.published
-
-    def test_parse_line_queued(self):
-        line = r"HLS.S30.T01GEL.2019059T213751.v2.0 \N queued f"
-        row = InventoryRow.parse_line(line)
-        assert row.granule_id == "HLS.S30.T01GEL.2019059T213751.v2.0"
-        assert row.start_datetime is None
-        assert row.status == "queued"
-        assert row.published is False
-
-    def test_parse_line_failed(self):
-        line = (
-            r"HLS.S30.T35MNT.2024365T082341.v2.0 2024-12-30\ 08:40:54.243+00 failed f"
-        )
-        row = InventoryRow.parse_line(line)
-        assert row.granule_id == "HLS.S30.T35MNT.2024365T082341.v2.0"
-        assert isinstance(row.start_datetime, dt.datetime)
-        assert row.status == "failed"
-        assert row.published is False
 
 
 class TestInventoryProgress:
@@ -86,18 +54,40 @@ class TestInventoryTrackerService:
         )
 
     @pytest.fixture
-    def inventory(self, service: InventoryTrackerService, s3: S3Client) -> str:
+    def inventory(
+        self, service: InventoryTrackerService, tmp_path: Path, s3: S3Client
+    ) -> str:
         """Create a fake inventory file"""
         inventory_contents = [
-            r"HLS.S30.T01FBE.2022224T215909.v2.0 2022-08-12\ 21:59:50.112+00 completed t",
-            r"HLS.S30.T01GEL.2019059T213751.v2.0 \N queued f",
-            r"HLS.S30.T35MNT.2024365T082341.v2.0 2024-12-30\ 08:40:54.243+00 failed f",
+            [
+                "HLS.S30.T01FBE.2022224T215909.v2.0",
+                "2022-08-12T21:59:50.112Z",
+                "completed",
+                True,
+            ],
+            ["HLS.S30.T01GEL.2019059T213751.v2.0", "NaT", "queued", False],
+            [
+                "HLS.S30.T35MNT.2024365T082341.v2.0",
+                "2024-12-30T08:40:54.243Z",
+                "failed",
+                False,
+            ],
         ]
-        key = "inventories/PROD_sentinel_cumulus_rds_granule_blah.sorted"
-        s3.put_object(
+
+        df = pd.DataFrame(
+            inventory_contents,
+            columns=["granule_id", "start_datetime", "status", "published"],
+        )
+        df["start_datetime"] = pd.to_datetime(df["start_datetime"])
+
+        parquet_file = tmp_path / "inventory.parquet"
+        df.to_parquet(parquet_file)
+
+        key = "inventories/PROD_sentinel_cumulus_rds_granule_blah.sorted.parquet"
+        s3.upload_file(
+            parquet_file,
             Bucket=service.bucket,
             Key=key,
-            Body="\n".join(inventory_contents).encode(),
         )
         return key
 

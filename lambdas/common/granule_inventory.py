@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import datetime as dt
 import json
 import re
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.exceptions import ClientError
@@ -13,49 +12,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
 
-INVENTORY_REGEX = re.compile(r".*cumulus_rds_granule.*")
-INVENTORY_ROW_REGEX = re.compile(r"^(\S+)\s(.*)\s(\S+)\s(t|f)$")
-INVENTORY_ROW_DATE_FORMAT = r"%Y-%m-%d\ %H:%M:%S.%f+00"
-
-
-@dataclass
-class InventoryRow:
-    """A row from the inventory report text file
-
-    Each row contains:
-
-    * Granule ID
-    * Beginning Date Time
-        * If the status is not "published" this may be a `\\N` character
-        * If published this will be `%Y-%m%-d\\ %H:%M:%S.%f+00`
-    * Status => {completed, failed, queued}
-    * Published: true | false
-    """
-
-    granule_id: str
-    start_datetime: dt.datetime | None
-    status: Literal["completed", "failed", "queued"]
-    published: bool
-
-    @classmethod
-    def parse_line(cls, line: str) -> InventoryRow:
-        """Parse a row from the inventory report"""
-        if match := INVENTORY_ROW_REGEX.match(line):
-            granule_id, maybe_datetime, status, published = match.groups()
-            if maybe_datetime == r"\N":
-                start_datetime = None
-            else:
-                start_datetime = dt.datetime.strptime(
-                    maybe_datetime, INVENTORY_ROW_DATE_FORMAT
-                ).replace(tzinfo=dt.UTC)
-            return cls(
-                granule_id=granule_id,
-                start_datetime=start_datetime,
-                status=status,
-                published=published == "t",
-            )
-
-        raise ValueError(f"Could not parse line ({line})")
+INVENTORY_REGEX = re.compile(r".*cumulus_rds_granule.*.parquet$")
 
 
 @dataclass

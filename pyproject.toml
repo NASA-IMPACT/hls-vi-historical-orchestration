@@ -4,11 +4,13 @@ version = "0.1.0"
 description = "Orchestration of the historical processing for the HLS-VI product."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
-    "boto3>=1.37.28",
-]
+dependencies = []
+
 
 [dependency-groups]
+lambda = [
+    "boto3>=1.37.28",
+]
 dev = [
     "boto3-stubs[batch,s3]>=1.37.36",
     "moto>=5.1.3",
@@ -24,11 +26,26 @@ deploy = [
     "constructs>=10.4.2",
     "pydantic-settings>=2.8.1",
 ]
+pandas = [
+    # Use "aws-sdk-pandas" (aka awswrangler) because they ship a Lambda Layer
+    # with really small builds for Pandas and PyArrow
+    #
+    # When upgrading, remember to upgrade the version in the CDK stack
+    # (variable "sdk_for_pandas_layer")
+    "awswrangler~=3.11.0",
+    # Installed by awswrangler, but listed here for our own record keeping...
+    "pandas>=2,<3",
+    "pyarrow>=18",
+]
+
+[tool.uv]
+default-groups = ["dev", "lambda"]
 
 [tool.pytest.ini_options]
 testpaths = [
     "tests"
 ]
+norecursedirs = ["cdk.out"]
 
 [tool.pytest.ini_options]
 pythonpath = ["lambdas"]
