@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from mypy_boto3_s3.client import S3Client
 
-from common.granule_inventory import (
+from common.granule_tracker import (
     InventoryProgress,
     InventoryTracking,
     InventoryTrackerService,

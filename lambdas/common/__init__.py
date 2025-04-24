@@ -1,6 +1,6 @@
 from .aws_batch import AwsBatchClient, AwsBatchJobDetail
 from .models import GranuleProcessingEvent
-from .granule_inventory import (
+from .granule_tracker import (
     InventoryTracking,
     InventoryTrackerService,
     InventoryProgress,
