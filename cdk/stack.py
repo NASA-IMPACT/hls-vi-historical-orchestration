@@ -1,6 +1,7 @@
 import os
 from typing import Any
 
+import jsii
 from aws_cdk import (
     Duration,
     RemovalPolicy,
@@ -13,14 +14,43 @@ from aws_cdk import (
     aws_s3,
     aws_sqs,
 )
+from aws_cdk import aws_lambda_python_alpha as aws_lambda_python
 from constructs import Construct
 
 from hls_constructs import BatchInfra, BatchJob
 from settings import StackSettings
 
 LAMBDA_EXCLUDE = [
+    ".git",
+    ".github",
     "**/*.egg-info",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    "venv",
+    ".venv",
+    ".env*",
+    "cdk",
+    "cdk.out",
+    "tests",
+    "scripts",
 ]
+
+
+@jsii.implements(aws_lambda_python.ICommandHooks)
+class UvHooks:
+    def after_bundling(self, input_dir: str, output_dir: str) -> list[str]:
+        return []
+
+    def before_bundling(self, input_dir: str, output_dir: str) -> list[str]:
+        return [
+            "python -m venv uv_venv",
+            ". uv_venv/bin/activate",
+            "pip install uv",
+            "export UV_CACHE_DIR=/tmp",
+            "uv export --frozen --no-dev --no-editable -o requirements.txt",
+            "rm -rf uv_venv"
+        ]
 
 
 class HlsViStack(Stack):
@@ -112,14 +142,12 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # Queue feeder
         # ----------------------------------------------------------------------
-        self.queue_feeder_lambda = aws_lambda.Function(
+        self.queue_feeder_lambda = aws_lambda_python.PythonFunction(
             self,
             "QueueFeederHandler",
-            code=aws_lambda.Code.from_asset(
-                os.path.join("lambdas"),
-                exclude=LAMBDA_EXCLUDE,
-            ),
-            handler="queue_feeder.handler.handler",
+            entry=os.path.join("."),
+            index="lambdas/queue_feeder/handler.py",
+            handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=512,
             timeout=Duration.minutes(10),
@@ -129,6 +157,10 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
             },
+            bundling=aws_lambda_python.BundlingOptions(
+                command_hooks=UvHooks(),
+                asset_excludes=LAMBDA_EXCLUDE,
+            ),
         )
 
         self.processing_bucket.grant_read_write(
