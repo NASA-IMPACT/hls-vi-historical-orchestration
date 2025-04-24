@@ -216,6 +216,7 @@ class HlsViStack(Stack):
             reserved_concurrent_executions=1,
             environment={
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "PROCESSING_BUCKET_JOB_PREFIX": settings.PROCESSING_BUCKET_JOB_PREFIX,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
             },
@@ -228,7 +229,6 @@ class HlsViStack(Stack):
 
         self.processing_bucket.grant_read_write(
             self.queue_feeder_lambda,
-            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}/*",
         )
 
         self.queue_feeder_lambda.add_to_role_policy(
@@ -263,12 +263,26 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # Job monitor & retry system
         # ----------------------------------------------------------------------
+        # Queue for job failures we need to investigate (bugs, repeat errors, etc)
+        self.job_failure_dlq = aws_sqs.Queue(
+            self,
+            "JobRetryFailureDLQ",
+            queue_name=settings.JOB_FAILURE_DLQ_NAME,
+            retention_period=Duration.days(14),
+            enforce_ssl=True,
+            encryption=aws_sqs.QueueEncryption.SQS_MANAGED,
+        )
 
-        # Queue for failed AWS Batch processing jobs
-        self.job_retry_failure_queue = aws_sqs.Queue(
+        # Queue for failed AWS Batch processing jobs we want to requeue
+        self.job_retry_queue = aws_sqs.Queue(
             self,
             "JobRetryFailureQueue",
             queue_name=settings.JOB_RETRY_FAILURE_QUEUE_NAME,
+            dead_letter_queue=aws_sqs.DeadLetterQueue(
+                queue=self.job_failure_dlq,
+                # Route to DLQ immediately if we can't process
+                max_receive_count=1,
+            ),
             retention_period=Duration.days(14),
             visibility_timeout=Duration.minutes(2),
             enforce_ssl=True,
@@ -288,9 +302,10 @@ class HlsViStack(Stack):
             timeout=Duration.minutes(1),
             environment={
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
-                "PROCESSING_BUCKET_FAILURE_PREFIX": settings.PROCESSING_BUCKET_FAILURE_PREFIX,
+                "PROCESSING_BUCKET_LOG_PREFIX": settings.PROCESSING_BUCKET_LOG_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
-                "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_failure_queue.queue_name,
+                "JOB_RETRY_QUEUE_NAME": self.job_retry_queue.queue_name,
+                "JOB_FAILURE_DLQ_NAME": self.job_failure_dlq.queue_name,
                 "PROCESSING_JOB_RETRY_ATTEMPTS": str(
                     settings.PROCESSING_JOB_RETRY_ATTEMPTS
                 ),
@@ -299,9 +314,9 @@ class HlsViStack(Stack):
 
         self.processing_bucket.grant_read_write(
             self.queue_feeder_lambda,
-            objects_key_pattern=f"{settings.PROCESSING_BUCKET_FAILURE_PREFIX}/*",
         )
-        self.job_retry_failure_queue.grant_send_messages(self.job_monitor_lambda)
+        self.job_retry_queue.grant_send_messages(self.job_monitor_lambda)
+        self.job_failure_dlq.grant_send_messages(self.job_monitor_lambda)
 
         # Events from AWS Batch "job state change events" in our processing queue
         # Ref: https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html
@@ -347,7 +362,7 @@ class HlsViStack(Stack):
             environment={
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
-                "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_failure_queue.queue_name,
+                "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_queue.queue_name,
             },
         )
 
@@ -357,7 +372,7 @@ class HlsViStack(Stack):
         self.processing_job.job_def.grant_submit_job(
             self.job_requeuer_lambda, self.batch_infra.queue
         )
-        self.job_retry_failure_queue.grant_consume_messages(self.job_requeuer_lambda)
+        self.job_retry_queue.grant_consume_messages(self.job_requeuer_lambda)
 
         # Requeuer consumes from queue that the "job monitor" publishes to
         self.job_requeuer_lambda.add_event_source_mapping(
@@ -365,5 +380,5 @@ class HlsViStack(Stack):
             batch_size=100,
             max_batching_window=Duration.minutes(1),
             report_batch_item_failures=True,
-            event_source_arn=self.job_retry_failure_queue.queue_arn,
+            event_source_arn=self.job_retry_queue.queue_arn,
         )

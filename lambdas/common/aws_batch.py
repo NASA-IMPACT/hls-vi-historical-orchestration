@@ -17,6 +17,10 @@ class AwsBatchJobDetail:
     detail: JobDetailTypeDef
 
     @property
+    def job_id(self) -> str:
+        return self.detail["jobId"]
+
+    @property
     def attempts(self) -> int:
         """Return the number of attempts from this job"""
         return len(self.detail.get("attempts", []))
