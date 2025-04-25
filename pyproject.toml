@@ -63,3 +63,6 @@ pretty = true
 strict = true
 show_error_code_links = true
 show_error_context = true
+
+[tool.isort]
+known_first_party = ["common", "job_feeder", "job_monitor", "job_requeuer"]

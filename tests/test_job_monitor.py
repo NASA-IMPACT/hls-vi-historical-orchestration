@@ -1,11 +1,24 @@
 """Tests for `job_monitor` Lambda"""
 
-from job_monitor.handler import handler
+import pytest
 from mypy_boto3_sqs import SQSClient
+
+from common import GranuleId, ProcessingOutcome
+from common.granule_logger import GranuleLoggerService
+from job_monitor.handler import handler
+
+
+@pytest.fixture
+def job_logger(bucket: str) -> GranuleLoggerService:
+    return GranuleLoggerService(bucket, "logs")
 
 
 def test_handler_logs_nonretryable_failure(
-    bucket: str, sqs: SQSClient, failure_dlq: str, event_job_detail_change_failed: dict
+    granule_id: GranuleId,
+    job_logger: GranuleLoggerService,
+    sqs: SQSClient,
+    failure_dlq: str,
+    event_job_detail_change_failed: dict,
 ):
     """Test the handler"""
     handler(event_job_detail_change_failed, {})
@@ -13,9 +26,14 @@ def test_handler_logs_nonretryable_failure(
     messages = sqs.receive_message(QueueUrl=failure_dlq)["Messages"]
     assert len(messages) == 1
 
+    events = job_logger.list_events(granule_id.to_str())
+    assert len(events[ProcessingOutcome.FAILURE]) == 1
+    assert ProcessingOutcome.SUCCESS not in events
+
 
 def test_handler_logs_retryable_failure(
-    bucket: str,
+    granule_id: GranuleId,
+    job_logger: GranuleLoggerService,
     sqs: SQSClient,
     retry_queue: str,
     event_job_detail_change_failed: dict,
@@ -29,9 +47,23 @@ def test_handler_logs_retryable_failure(
     messages = sqs.receive_message(QueueUrl=retry_queue)["Messages"]
     assert len(messages) == 1
 
+    events = job_logger.list_events(granule_id.to_str())
+    assert len(events[ProcessingOutcome.FAILURE]) == 1
+    assert ProcessingOutcome.SUCCESS not in events
+
 
 def test_handler_logs_success(
-    bucket: str, sqs: SQSClient, failure_dlq: str, event_job_detail_change_failed: dict
+    granule_id: GranuleId,
+    job_logger: GranuleLoggerService,
+    sqs: SQSClient,
+    failure_dlq: str,
+    event_job_detail_change_failed: dict,
 ):
     """Test the handler"""
-    handler(event_job_detail_change_failed, {})
+    event = event_job_detail_change_failed.copy()
+    event["detail"]["container"]["exitCode"] = 0
+    handler(event, {})
+
+    events = job_logger.list_events(granule_id.to_str())
+    assert len(events[ProcessingOutcome.SUCCESS]) == 1
+    assert ProcessingOutcome.FAILURE not in events

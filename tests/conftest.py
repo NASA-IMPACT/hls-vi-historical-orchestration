@@ -86,6 +86,12 @@ def failure_dlq(sqs: SQSClient, monkeypatch) -> str:
 
 
 @pytest.fixture
+def granule_id() -> GranuleId:
+    """A valid, example granule ID"""
+    return GranuleId.from_str("HLS.S30.T01GBH.2022226T214921.v2.0")
+
+
+@pytest.fixture
 def job_detail_failed_error() -> JobDetailTypeDef:
     """DescribeJob for a AWS Batch job that failed because of some error"""
     return json.loads((FIXTURES / "job_detail_failed_error.json").read_text())
@@ -101,9 +107,3 @@ def job_detail_failed_spot() -> JobDetailTypeDef:
 def event_job_detail_change_failed() -> dict:
     """AWS Events Job State Change for a AWS Batch job that failed"""
     return json.loads((FIXTURES / "job_state_change_failure.json").read_text())
-
-
-@pytest.fixture
-def granule_id() -> GranuleId:
-    """A valid, example granule ID"""
-    return GranuleId.from_str("HLS.S30.T01GBH.2022226T214921.v2.0")
