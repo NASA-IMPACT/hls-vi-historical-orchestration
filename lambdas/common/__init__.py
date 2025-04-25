@@ -1,17 +1,20 @@
-from .aws_batch import AwsBatchClient, AwsBatchJobDetail
-from .models import GranuleProcessingEvent
+from .aws_batch import AwsBatchClient, JobChangeEvent, JobDetails
 from .granule_tracker import (
-    InventoryTracking,
-    InventoryTrackerService,
     InventoryProgress,
+    InventoryTrackerService,
+    InventoryTracking,
 )
-
+from .models import GranuleId, GranuleProcessingEvent, JobOutcome, ProcessingOutcome
 
 __all__ = [
     "AwsBatchClient",
-    "AwsBatchJobDetail",
+    "GranuleId",
     "GranuleProcessingEvent",
-    "InventoryTracking",
+    "JobChangeEvent",
+    "JobDetails",
+    "JobOutcome",
     "InventoryProgress",
     "InventoryTrackerService",
+    "InventoryTracking",
+    "ProcessingOutcome",
 ]

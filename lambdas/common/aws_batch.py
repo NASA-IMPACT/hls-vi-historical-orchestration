@@ -1,20 +1,38 @@
 from __future__ import annotations
 
-import typing
+from typing import TYPE_CHECKING, TypedDict
 
 import boto3
 from dataclasses import dataclass, field
 
-if typing.TYPE_CHECKING:
+from common.models import GranuleProcessingEvent, JobOutcome
+
+if TYPE_CHECKING:
     from mypy_boto3_batch.client import BatchClient
-    from mypy_boto3_batch.type_defs import JobDetailTypeDef
+    from mypy_boto3_batch.type_defs import (
+        AwsJobDetailTypeDef,
+    )
+
+
+class JobChangeEvent(TypedDict):
+    """Type hint for AWS Batch job change events"""
+
+    version: str
+    id: str
+    detail_type: str
+    source: str
+    account: str
+    time: str
+    region: str
+    resources: list[str]
+    detail: AwsJobDetailTypeDef
 
 
 @dataclass
-class AwsBatchJobDetail:
+class JobDetails:
     """Container for accessing properties about an AWS Batch job details"""
 
-    detail: JobDetailTypeDef
+    detail: AwsJobDetailTypeDef
 
     @property
     def job_id(self) -> str:
@@ -33,6 +51,27 @@ class AwsBatchJobDetail:
         have an exit code.
         """
         return self.detail.get("container", {}).get("exitCode")
+
+    def get_job_info(self) -> dict:
+        """Return verbose details about this job"""
+        return self.detail
+
+    def get_job_outcome(self) -> JobOutcome:
+        """Return the outcome of this job"""
+        if self.exit_code == 0:
+            return JobOutcome.SUCCESS
+        elif self.exit_code is None:
+            return JobOutcome.FAILURE_RETRYABLE
+        else:
+            return JobOutcome.FAILURE_NONRETRYABLE
+
+    def get_granule_event(self) -> GranuleProcessingEvent:
+        """Return the granule processing event details for this job"""
+        env = {
+            entry["name"]: entry["value"]
+            for entry in self.detail["container"]["environment"]
+        }
+        return GranuleProcessingEvent.from_envvar(env)
 
 
 @dataclass

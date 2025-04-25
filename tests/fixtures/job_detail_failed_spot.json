@@ -63,7 +63,10 @@
     ],
     "jobRoleArn": "arn:aws:iam::611670965994:role/hls-mcp-production-viirs-LandsatTaskTaskRoleFD2391A-OGNYvUOzGjQF",
     "volumes": [],
-    "environment": [],
+    "environment": [
+      { "name": "GRANULE_ID", "value": "HLS.S30.T01GBH.2022226T214921.v2.0" },
+      { "name": "ATTEMPT", "value": "0" }
+    ],
     "mountPoints": [],
     "ulimits": [],
     "containerInstanceArn": "arn:aws:ecs:us-west-2:611670965994:container-instance/BatchComputeEnvironment9-0OFw7AHT7ojesu8J_Batch_88ef208a-34f7-32e1-8d86-4e7c4cc53ea6/9f17f53b43174bc7b696e8e66b3df3e6",

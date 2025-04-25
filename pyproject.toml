@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Orchestration of the historical processing for the HLS-VI product."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "s3pathlib>=2.3.2",
+]
 
 
 [dependency-groups]
@@ -12,7 +14,7 @@ lambda = [
     "boto3>=1.37.28",
 ]
 dev = [
-    "boto3-stubs[batch,s3]>=1.37.36",
+    "boto3-stubs[batch,s3,sqs]>=1.37.36",
     "moto>=5.1.3",
     "mypy>=1.15.0",
     "pytest>=8.3.5",

@@ -1,37 +1,124 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import datetime as dt
+import json
+from enum import Enum, auto
+from typing import Literal
+
+from dataclasses import asdict, dataclass
+
+
+class ProcessingOutcome(Enum):
+    """Potential outcomes for granule processing"""
+
+    SUCCESS = auto()
+    FAILURE = auto()
+
+
+class JobOutcome(Enum):
+    """Potential outcomes for an AWS Batch job"""
+
+    SUCCESS = auto()
+    FAILURE_RETRYABLE = auto()
+    FAILURE_NONRETRYABLE = auto()
+
+    @property
+    def processing_outcome(self) -> ProcessingOutcome:
+        """Current status of the overall processing outcome"""
+        return {
+            self.SUCCESS: ProcessingOutcome.SUCCESS,
+            self.FAILURE_RETRYABLE: ProcessingOutcome.FAILURE,
+            self.FAILURE_NONRETRYABLE: ProcessingOutcome.FAILURE,
+        }[self]
 
 
 @dataclass
+class GranuleId:
+    """Granule identifier"""
+
+    product: Literal["HLS"]
+    platform: Literal["L30", "S30"]
+    tile: str
+    begin_datetime: dt.datetime
+    version: Literal["v2.0"]
+
+    @classmethod
+    def from_str(cls, granule_id: str) -> GranuleId:
+        """Parse components from a string ID"""
+        product, platform, tile, begin_datetime, version_major, version_minor = (
+            granule_id.split(".")
+        )
+        return cls(
+            product=product,
+            platform=platform,
+            tile=tile,
+            begin_datetime=dt.datetime.strptime(begin_datetime, "%Y%m%dT%H%M%S"),
+            version=".".join([version_major, version_minor]),
+        )
+
+    def to_str(self) -> str:
+        """Recombine parts into an ID string"""
+        return ".".join(
+            [
+                self.product,
+                self.platform,
+                self.tile,
+                self.begin_datetime.strftime("%Y%m%dT%H%M%S"),
+                self.version,
+            ]
+        )
+
+
+@dataclass(frozen=True)
 class GranuleProcessingEvent:
     """Event message for granule processing jobs"""
 
     granule_id: str
     attempt: int = 0
 
+    def new_attempt(self) -> GranuleProcessingEvent:
+        """Return a new GranuleProcessingEvent for another attempt"""
+        return GranuleProcessingEvent(
+            granule_id=self.granule_id,
+            attempt=self.attempt + 1,
+        )
+
     def to_envvar(self) -> dict[str, str]:
         """Convert this event to environment variable"""
         return {
-            "granule_id": self.granule_id,
-            "attempt": str(self.attempt),
+            "GRANULE_ID": self.granule_id,
+            "ATTEMPT": str(self.attempt),
         }
 
+    @classmethod
+    def from_envvar(cls, env: dict[str, str]) -> GranuleProcessingEvent:
+        """Parse from provided environment variables
 
-@dataclass
-class InventoryProgressTracker:
-    """Tracks our progression through a granule inventory file"""
+        Raises
+        ------
+        KeyError
+            Raised if the expected keys aren't in the envvars provided
+        """
+        return cls(
+            granule_id=env["GRANULE_ID"],
+            attempt=int(env["ATTEMPT"]),
+        )
 
-    # key to the inventory file
-    inventory: str
-    # how many granules (lines of the file) have we submitted?
-    submitted_count: int
-
-    def to_json(self) -> str:
-        """Convert to JSON for storage in SSM"""
-        return json.dumps(asdict(self))
+    def to_environment(self) -> list[dict[str, str]]:
+        """Format as a container environment definition"""
+        return [
+            {"name": key, "value": value} for key, value in self.to_envvar().items()
+        ]
 
     @classmethod
-    def from_json(cls, json_str: str) -> InventoryProgressTracker:
-        """Parse from JSON"""
-        return cls(**json.loads(json_str))
+    def from_json(cls, json_str: str) -> GranuleProcessingEvent:
+        """Load from a JSON string"""
+        data = json.loads(json_str)
+        return cls(
+            granule_id=data["granule_id"],
+            attempt=data["attempt"],
+        )
+
+    def to_json(self) -> str:
+        """Dump to a JSON string"""
+        return json.dumps(asdict(self))

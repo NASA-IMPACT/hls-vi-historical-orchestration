@@ -304,8 +304,8 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_LOG_PREFIX": settings.PROCESSING_BUCKET_LOG_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
-                "JOB_RETRY_QUEUE_NAME": self.job_retry_queue.queue_name,
-                "JOB_FAILURE_DLQ_NAME": self.job_failure_dlq.queue_name,
+                "JOB_RETRY_QUEUE_URL": self.job_retry_queue.queue_url,
+                "JOB_FAILURE_DLQ_URL": self.job_failure_dlq.queue_url,
                 "PROCESSING_JOB_RETRY_ATTEMPTS": str(
                     settings.PROCESSING_JOB_RETRY_ATTEMPTS
                 ),
@@ -362,7 +362,6 @@ class HlsViStack(Stack):
             environment={
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
-                "JOB_RETRY_FAILURE_QUEUE_NAME": self.job_retry_queue.queue_name,
             },
         )
 
