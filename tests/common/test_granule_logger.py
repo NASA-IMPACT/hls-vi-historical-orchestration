@@ -77,7 +77,10 @@ class TestGranuleLoggerService:
 
         # Two failures should exist
         list_events = service.list_events(granule_id.to_str())
-        assert set(list_events[ProcessingOutcome.FAILURE]) == {first_event, second_event}
+        assert set(list_events[ProcessingOutcome.FAILURE]) == {
+            first_event,
+            second_event,
+        }
 
         # We fixed a bug and it succeeds
         batch_details = job_detail_failed_spot.copy()
@@ -93,4 +96,8 @@ class TestGranuleLoggerService:
         # All logs have been moved to "success" since the job is done
         list_events = service.list_events(granule_id.to_str())
         assert ProcessingOutcome.FAILURE not in list_events
-        assert set(list_events[ProcessingOutcome.SUCCESS]) == {first_event, second_event, third_event}
+        assert set(list_events[ProcessingOutcome.SUCCESS]) == {
+            first_event,
+            second_event,
+            third_event,
+        }

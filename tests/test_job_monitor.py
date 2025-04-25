@@ -15,7 +15,11 @@ def test_handler_logs_nonretryable_failure(
 
 
 def test_handler_logs_retryable_failure(
-    bucket: str, sqs: SQSClient, retry_queue: str, event_job_detail_change_failed: dict, job_detail_failed_spot: dict
+    bucket: str,
+    sqs: SQSClient,
+    retry_queue: str,
+    event_job_detail_change_failed: dict,
+    job_detail_failed_spot: dict,
 ):
     """Test the handler"""
     event = event_job_detail_change_failed.copy()
