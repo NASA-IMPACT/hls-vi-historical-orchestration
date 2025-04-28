@@ -31,11 +31,11 @@ if logger.hasHandlers():
 else:
     logging.basicConfig(level=logging.INFO)
 
-sqs = boto3.client("sqs")
-
 
 def handler(event: JobChangeEvent, context: dict):
     """Event handler for AWS Batch "job state change" events"""
+    sqs = boto3.client("sqs")
+
     logs_bucket = os.environ["PROCESSING_BUCKET_NAME"]
     logs_prefix = os.environ.get("PROCESSING_BUCKET_LOG_PREFIX", "logs")
     retry_queue_url = os.environ["JOB_RETRY_QUEUE_URL"]
