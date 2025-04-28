@@ -48,6 +48,18 @@ def sqs(aws_credentials) -> SQSClient:
         yield boto3.client("sqs", region_name="us-west-2")
 
 
+@pytest.fixture
+def settings(monkeypatch) -> dict[str, str]:
+    """Monkeypatch some required settings for test purposes"""
+    settings = {
+        "JOB_RETRY_QUEUE_NAME": "hls-vi-orch-job-retries",
+        "JOB_FAILURE_DLQ_NAME": "hls-vi-orch-job-failure-dlq",
+    }
+    for key, value in settings.items():
+        monkeypatch.setenv(key, value)
+    return settings
+
+
 def _queue_url_to_arn(sqs: SQSClient, url: str) -> str:
     """Get the ARN for a queue by name"""
     resp = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=["QueueArn"])
@@ -55,7 +67,7 @@ def _queue_url_to_arn(sqs: SQSClient, url: str) -> str:
 
 
 @pytest.fixture
-def retry_queue(sqs: SQSClient, failure_dlq: str, monkeypatch) -> str:
+def retry_queue(sqs: SQSClient, failure_dlq: str, settings: dict, monkeypatch) -> str:
     """Create mocked retry queue, returning queue URL and populating envvars"""
     queue_name = os.environ.get("JOB_RETRY_QUEUE_NAME")
     failure_dlq_arn = _queue_url_to_arn(sqs, failure_dlq)
@@ -76,7 +88,7 @@ def retry_queue(sqs: SQSClient, failure_dlq: str, monkeypatch) -> str:
 
 
 @pytest.fixture
-def failure_dlq(sqs: SQSClient, monkeypatch) -> str:
+def failure_dlq(sqs: SQSClient, settings: dict, monkeypatch) -> str:
     """Create mocked failure queue, returning queue URL and populating envvars"""
     queue_name = os.environ.get("JOB_FAILURE_DLQ_NAME")
     queue_url = sqs.create_queue(QueueName=queue_name)["QueueUrl"]
