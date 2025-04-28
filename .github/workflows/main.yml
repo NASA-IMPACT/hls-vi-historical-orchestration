@@ -18,8 +18,11 @@ on:
       - "cdk.json"
       - "pyproject.toml"
   pull_request:
-    branches:
-      - main
+    types:
+      - edited
+      - opened
+      - reopened
+      - synchronize
     paths:
       - ".github/workflows/*"
       - "cdk/**/*"
