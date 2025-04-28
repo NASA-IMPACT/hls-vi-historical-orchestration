@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from enum import Enum, auto
+from enum import Enum, auto, unique
 from typing import Literal
 
 from dataclasses import asdict, dataclass
 
 
+@unique
 class ProcessingOutcome(Enum):
     """Potential outcomes for granule processing"""
 
@@ -15,6 +16,7 @@ class ProcessingOutcome(Enum):
     FAILURE = auto()
 
 
+@unique
 class JobOutcome(Enum):
     """Potential outcomes for an AWS Batch job"""
 
@@ -30,6 +32,9 @@ class JobOutcome(Enum):
             self.FAILURE_RETRYABLE: ProcessingOutcome.FAILURE,
             self.FAILURE_NONRETRYABLE: ProcessingOutcome.FAILURE,
         }[self]
+
+
+HLS_GRANULE_ID_STRFTIME = "%Y%jT%H%M%S"
 
 
 @dataclass
@@ -52,7 +57,9 @@ class GranuleId:
             product=product,
             platform=platform,
             tile=tile,
-            begin_datetime=dt.datetime.strptime(begin_datetime, "%Y%m%dT%H%M%S"),
+            begin_datetime=dt.datetime.strptime(
+                begin_datetime, HLS_GRANULE_ID_STRFTIME
+            ),
             version=".".join([version_major, version_minor]),
         )
 
@@ -63,7 +70,7 @@ class GranuleId:
                 self.product,
                 self.platform,
                 self.tile,
-                self.begin_datetime.strftime("%Y%m%dT%H%M%S"),
+                self.begin_datetime.strftime(HLS_GRANULE_ID_STRFTIME),
                 self.version,
             ]
         )

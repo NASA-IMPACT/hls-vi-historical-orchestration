@@ -51,6 +51,13 @@ norecursedirs = ["cdk.out"]
 
 [tool.pytest.ini_options]
 pythonpath = ["lambdas"]
+addopts = "--cov=lambdas"
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.coverage.run]
+source = ["lambdas"]
 
 [tool.ruff]
 fix = true

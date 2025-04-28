@@ -8,6 +8,7 @@ from common.granule_tracker import (
     InventoryProgress,
     InventoryTracking,
     InventoryTrackerService,
+    InventoryTrackingNotFoundError,
 )
 
 
@@ -40,6 +41,20 @@ class TestInventoryTracking:
         as_ndjson = tracking.to_ndjson()
         from_ndjson = InventoryTracking.from_ndjson(as_ndjson)
         assert from_ndjson == tracking
+
+    def test_is_complete(self):
+        """Test aggregate 'is_complete'"""
+        tracking = InventoryTracking(
+            inventories=[
+                InventoryProgress("sentinel", 0, False),
+                InventoryProgress("landsat", 10000, True),
+            ],
+            etag="asdf",
+        )
+        assert not tracking.is_complete
+
+        tracking.inventories[0].is_complete = True
+        assert tracking.is_complete
 
 
 class TestInventoryTrackerService:
@@ -98,3 +113,23 @@ class TestInventoryTrackerService:
         inventories = service._list_inventories()
         assert len(inventories) == 1
         assert inventories[0] == inventory
+
+    def test_create_get_update_tracking(
+        self, service: InventoryTrackerService, inventory: str
+    ):
+        """Test sequence of creating/getting/updating inventory"""
+        with pytest.raises(InventoryTrackingNotFoundError):
+            service.get_tracking()
+
+        created_tracking = service.create_tracking()
+        assert len(created_tracking.inventories) == 1
+        assert created_tracking.inventories[0].inventory_key == inventory
+        assert created_tracking.inventories[0].submitted_count == 0
+        assert created_tracking.etag != ""
+
+        got_tracking = service.get_tracking()
+        assert got_tracking.etag == created_tracking.etag
+
+        got_tracking.inventories[0].submitted_count += 100
+        updated_inventory = service.update_tracking(got_tracking)
+        assert updated_inventory.etag != got_tracking.etag

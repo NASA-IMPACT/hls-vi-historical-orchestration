@@ -3,6 +3,7 @@ from .granule_tracker import (
     InventoryProgress,
     InventoryTrackerService,
     InventoryTracking,
+    InventoryTrackingNotFoundError,
 )
 from .models import GranuleId, GranuleProcessingEvent, JobOutcome, ProcessingOutcome
 
@@ -16,5 +17,6 @@ __all__ = [
     "InventoryProgress",
     "InventoryTrackerService",
     "InventoryTracking",
+    "InventoryTrackingNotFoundError",
     "ProcessingOutcome",
 ]

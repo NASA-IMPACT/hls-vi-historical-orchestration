@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 from dataclasses import asdict, dataclass, field
@@ -67,6 +68,15 @@ class InventoryTracking:
             etag=etag,
         )
 
+    @property
+    def is_complete(self) -> bool:
+        """Have all of the inventories been completed?"""
+        return all(inventory.is_complete for inventory in self.inventories)
+
+
+class InventoryTrackingNotFoundError(FileNotFoundError):
+    """Raised if the inventory tracking doesn't exist."""
+
 
 @dataclass
 class InventoryTrackerService:
@@ -98,12 +108,12 @@ class InventoryTrackerService:
     def create_tracking(self) -> InventoryTracking:
         """Create inventory progress tracking info"""
         inventories = self._list_inventories()
-        inventories_progress = InventoryTracking(
+        tracking = InventoryTracking(
             inventories=[
                 InventoryProgress(
                     inventory_key=inventory,
                     submitted_count=0,
-                    complete=False,
+                    is_complete=False,
                 )
                 for inventory in inventories
             ],
@@ -114,17 +124,20 @@ class InventoryTrackerService:
             Bucket=self.bucket,
             Key=self._inventory_tracking_key,
             IfNoneMatch="*",
-            Body=inventories_progress.to_ndjson().encode(),
+            Body=tracking.to_ndjson().encode(),
         )
-        inventories_progress.etag = resp["ETag"].replace('"', "")
+        tracking.etag = _sanitize_etag(resp["ETag"])
 
-        return inventories_progress
+        return tracking
 
     def get_tracking(self) -> InventoryTracking:
         """Retrieve progress through granule inventories
 
-        If no progress information exists, list inventories and initialize progress
-        tracking info.
+        Raises
+        ------
+        InventoryTrackingNotFoundError
+            Raised if the tracking doesn't exist. Please "create()" before
+            getting.
         """
         try:
             resp = self.client.get_object(
@@ -133,23 +146,32 @@ class InventoryTrackerService:
             )
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
-                return self.create_progress()
+                raise InventoryTrackingNotFoundError("No inventory exists yet")
             raise
         else:
             return InventoryTracking.from_ndjson(
-                resp["Body"].read().decode(), resp["ETag"]
+                resp["Body"].read().decode(), _sanitize_etag(resp["ETag"])
             )
 
     def update_tracking(
-        self, inventories_progress: InventoryTracking
+        self, tracking: InventoryTracking
     ) -> InventoryTracking:
         """Update inventory progress"""
         resp = self.client.put_object(
             Bucket=self.bucket,
             Key=self._inventory_tracking_key,
-            IfMatch=inventories_progress.etag,
-            Body=inventories_progress.to_ndjson().encode(),
+            IfMatch=tracking.etag,
+            Body=tracking.to_ndjson().encode(),
         )
-        inventories_progress.etag = resp["ETag"].replace('"', "")
 
-        return inventories_progress
+        updated_tracking = dataclasses.replace(
+            tracking,
+            etag=resp["ETag"].replace('"', "")
+        )
+
+        return updated_tracking
+
+
+def _sanitize_etag(etag: str) -> str:
+    """Remove extra quota from ETag"""
+    return etag.replace('"', "")

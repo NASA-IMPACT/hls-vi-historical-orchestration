@@ -3,7 +3,8 @@
 import pytest
 from mypy_boto3_sqs import SQSClient
 
-from common import GranuleId, ProcessingOutcome
+from common import GranuleId, JobOutcome, ProcessingOutcome
+from common.aws_batch import JobDetails
 from common.granule_logger import GranuleLoggerService
 from job_monitor.handler import handler
 
@@ -17,11 +18,18 @@ def test_handler_logs_nonretryable_failure(
     granule_id: GranuleId,
     job_logger: GranuleLoggerService,
     sqs: SQSClient,
+    retry_queue: str,
     failure_dlq: str,
     event_job_detail_change_failed: dict,
 ):
     """Test the handler"""
-    handler(event_job_detail_change_failed, {})
+    event = event_job_detail_change_failed.copy()
+    event["detail"]["container"]["exitCode"] = 1
+    assert (
+        JobDetails(event["detail"]).get_job_outcome() == JobOutcome.FAILURE_NONRETRYABLE
+    )
+
+    handler(event, {})
 
     messages = sqs.receive_message(QueueUrl=failure_dlq)["Messages"]
     assert len(messages) == 1
@@ -36,6 +44,7 @@ def test_handler_logs_retryable_failure(
     job_logger: GranuleLoggerService,
     sqs: SQSClient,
     retry_queue: str,
+    failure_dlq: str,
     event_job_detail_change_failed: dict,
     job_detail_failed_spot: dict,
 ):
@@ -56,6 +65,7 @@ def test_handler_logs_success(
     granule_id: GranuleId,
     job_logger: GranuleLoggerService,
     sqs: SQSClient,
+    retry_queue: str,
     failure_dlq: str,
     event_job_detail_change_failed: dict,
 ):
