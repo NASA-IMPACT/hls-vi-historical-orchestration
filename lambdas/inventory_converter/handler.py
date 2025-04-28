@@ -57,7 +57,7 @@ class InventoryRow:
             return cls(
                 granule_id=granule_id,
                 start_datetime=start_datetime,
-                status=status,
+                status=status,  # type: ignore[arg-type]
                 published=published == "t",
             )
 
@@ -67,7 +67,7 @@ class InventoryRow:
     def parse_series(series: pd.Series) -> pd.DataFrame:
         """Parse each row from a Pandas Series into Pandas DataFrame"""
         df = series.str.extract(INVENTORY_ROW_REGEX)
-        df.columns = ["granule_id", "start_datetime", "status", "published"]
+        df.columns = ["granule_id", "start_datetime", "status", "published"]  # type: ignore[assignment]
 
         # sanitize datetime
         df["start_datetime"] = (
@@ -87,11 +87,11 @@ class InventoryRow:
 def convert_inventory_to_parquet(inventory: Path, destination: Path):
     """Convert an inventory file to Parquet"""
     schema = pa.schema(
-        [
+        [  # type: ignore[arg-type]
             pa.field("granule_id", pa.string()),
             pa.field("start_datetime", pa.date64(), nullable=True),
             pa.field("status", pa.string()),
-            pa.field("published", pa.bool8()),
+            pa.field("published", pa.bool_()),
         ]
     )
 

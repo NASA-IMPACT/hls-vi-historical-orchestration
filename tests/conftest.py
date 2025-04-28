@@ -10,7 +10,9 @@ from mypy_boto3_batch.type_defs import JobDetailTypeDef
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_sqs import SQSClient
 
+from common.aws_batch import JobChangeEvent
 from common.models import GranuleId
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -119,6 +121,6 @@ def job_detail_failed_spot() -> JobDetailTypeDef:
 
 
 @pytest.fixture
-def event_job_detail_change_failed() -> dict:
+def event_job_detail_change_failed() -> JobChangeEvent:
     """AWS Events Job State Change for a AWS Batch job that failed"""
     return json.loads((FIXTURES / "job_state_change_failure.json").read_text())

@@ -1,6 +1,9 @@
 """Tests for `common.granule_logger`"""
 
+from typing import cast
+
 import pytest
+from mypy_boto3_batch.type_defs import KeyValuePairTypeDef, JobDetailTypeDef
 
 from common import ProcessingOutcome, GranuleProcessingEvent, GranuleId
 from common.aws_batch import JobDetails
@@ -50,13 +53,15 @@ class TestGranuleLoggerService:
         self,
         service: GranuleLoggerService,
         granule_id: GranuleId,
-        job_detail_failed_spot: dict,
+        job_detail_failed_spot: JobDetailTypeDef,
     ):
         """Test we can log a sequence of failures and then a final success"""
         # First failure
         batch_details = job_detail_failed_spot.copy()
         first_event = GranuleProcessingEvent(granule_id.to_str(), 0)
-        batch_details["container"]["environment"] = first_event.to_environment()
+        batch_details["container"]["environment"] = cast(
+            list[KeyValuePairTypeDef], first_event.to_environment()
+        )
         batch_details["container"].pop("exitCode", None)  # spot failure
         details = JobDetails(batch_details)
 
@@ -67,7 +72,9 @@ class TestGranuleLoggerService:
         # Second failure
         batch_details = job_detail_failed_spot.copy()
         second_event = first_event.new_attempt()
-        batch_details["container"]["environment"] = second_event.to_environment()
+        batch_details["container"]["environment"] = cast(
+            list[KeyValuePairTypeDef], second_event.to_environment()
+        )
         batch_details["container"]["exitCode"] = 1  # some kind of bug
         details = JobDetails(batch_details)
 
@@ -85,7 +92,9 @@ class TestGranuleLoggerService:
         # We fixed a bug and it succeeds
         batch_details = job_detail_failed_spot.copy()
         third_event = second_event.new_attempt()
-        batch_details["container"]["environment"] = third_event.to_environment()
+        batch_details["container"]["environment"] = cast(
+            list[KeyValuePairTypeDef], third_event.to_environment()
+        )
         batch_details["container"]["exitCode"] = 0
         details = JobDetails(batch_details)
 
