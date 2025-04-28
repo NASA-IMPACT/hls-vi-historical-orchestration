@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from typing import Iterator
 
 import boto3
 import pytest
@@ -25,7 +26,7 @@ def aws_credentials():
 
 
 @pytest.fixture
-def s3(aws_credentials) -> S3Client:
+def s3(aws_credentials) -> Iterator[S3Client]:
     """Return a mocked S3 client"""
     with mock_aws():
         yield boto3.client("s3", region_name="us-west-2")
@@ -42,7 +43,7 @@ def bucket(s3: S3Client, monkeypatch) -> str:
 
 
 @pytest.fixture
-def sqs(aws_credentials) -> SQSClient:
+def sqs(aws_credentials) -> Iterator[SQSClient]:
     """Return a mocked SQS client"""
     with mock_aws():
         yield boto3.client("sqs", region_name="us-west-2")
@@ -67,9 +68,11 @@ def _queue_url_to_arn(sqs: SQSClient, url: str) -> str:
 
 
 @pytest.fixture
-def retry_queue(sqs: SQSClient, failure_dlq: str, settings: dict, monkeypatch) -> str:
+def retry_queue(
+    sqs: SQSClient, failure_dlq: str, settings: dict, monkeypatch
+) -> Iterator[str]:
     """Create mocked retry queue, returning queue URL and populating envvars"""
-    queue_name = os.environ.get("JOB_RETRY_QUEUE_NAME")
+    queue_name = os.environ["JOB_RETRY_QUEUE_NAME"]
     failure_dlq_arn = _queue_url_to_arn(sqs, failure_dlq)
     queue_url = sqs.create_queue(
         QueueName=queue_name,
@@ -88,9 +91,9 @@ def retry_queue(sqs: SQSClient, failure_dlq: str, settings: dict, monkeypatch) -
 
 
 @pytest.fixture
-def failure_dlq(sqs: SQSClient, settings: dict, monkeypatch) -> str:
+def failure_dlq(sqs: SQSClient, settings: dict, monkeypatch) -> Iterator[str]:
     """Create mocked failure queue, returning queue URL and populating envvars"""
-    queue_name = os.environ.get("JOB_FAILURE_DLQ_NAME")
+    queue_name = os.environ["JOB_FAILURE_DLQ_NAME"]
     queue_url = sqs.create_queue(QueueName=queue_name)["QueueUrl"]
     monkeypatch.setenv("JOB_FAILURE_DLQ_URL", queue_url)
     yield queue_url

@@ -31,7 +31,7 @@ class JobOutcome(Enum):
             self.SUCCESS: ProcessingOutcome.SUCCESS,
             self.FAILURE_RETRYABLE: ProcessingOutcome.FAILURE,
             self.FAILURE_NONRETRYABLE: ProcessingOutcome.FAILURE,
-        }[self]
+        }[self]  # type: ignore[index]
 
 
 HLS_GRANULE_ID_STRFTIME = "%Y%jT%H%M%S"
@@ -54,13 +54,13 @@ class GranuleId:
             granule_id.split(".")
         )
         return cls(
-            product=product,
-            platform=platform,
+            product=product,  # type: ignore[arg-type]
+            platform=platform,  # type: ignore[arg-type]
             tile=tile,
             begin_datetime=dt.datetime.strptime(
                 begin_datetime, HLS_GRANULE_ID_STRFTIME
             ),
-            version=".".join([version_major, version_minor]),
+            version=".".join([version_major, version_minor]),  # type: ignore[arg-type]
         )
 
     def to_str(self) -> str:

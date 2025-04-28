@@ -6,7 +6,7 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from botocore.exceptions import ClientError
 from boto_session_manager import BotoSesManager
@@ -20,6 +20,11 @@ from common import (
     ProcessingOutcome,
 )
 
+if TYPE_CHECKING:
+    from mypy_boto3_batch.type_defs import (
+        JobDetailTypeDef,
+    )
+
 
 class NoSuchEventAttemptExists(FileNotFoundError):
     """Raised if the logs for the GranuleProcessingEvent doesn't exist"""
@@ -32,7 +37,7 @@ class GranuleEventJobLog:
     granule_id: str
     attempt: int
     outcome: JobOutcome
-    job_info: dict
+    job_info: JobDetailTypeDef
 
     def to_json(self) -> str:
         """Export to JSON (enum dumped by name)"""

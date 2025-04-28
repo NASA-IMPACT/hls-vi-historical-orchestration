@@ -14,7 +14,6 @@ def inventory() -> dict[str, str]:
     return {
         "completed": r"HLS.S30.T01FBE.2022224T215909.v2.0 2022-08-12\ 21:59:50.112+00 completed t",
         "queued": r"HLS.S30.T01GEL.2019059T213751.v2.0 \N queued f",
-        "failed": r"HLS.S30.T35MNT.2024365T082341.v2.0 2024-12-30\ 08:40:54.243+00 failed f",
         # sigh, we have a mix of string formats
         "failed": r"HLS.S30.T35MNT.2024365T082341.v2.0 2024-12-30\ 08:40:54+00 failed f",
     }

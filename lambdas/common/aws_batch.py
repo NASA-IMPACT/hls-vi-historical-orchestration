@@ -10,7 +10,7 @@ from common.models import GranuleProcessingEvent, JobOutcome
 if TYPE_CHECKING:
     from mypy_boto3_batch.client import BatchClient
     from mypy_boto3_batch.type_defs import (
-        AwsJobDetailTypeDef,
+        JobDetailTypeDef,
     )
 
 
@@ -25,14 +25,14 @@ class JobChangeEvent(TypedDict):
     time: str
     region: str
     resources: list[str]
-    detail: AwsJobDetailTypeDef
+    detail: JobDetailTypeDef
 
 
 @dataclass
 class JobDetails:
     """Container for accessing properties about an AWS Batch job details"""
 
-    detail: AwsJobDetailTypeDef
+    detail: JobDetailTypeDef
 
     @property
     def job_id(self) -> str:
@@ -52,7 +52,7 @@ class JobDetails:
         """
         return self.detail.get("container", {}).get("exitCode")
 
-    def get_job_info(self) -> dict:
+    def get_job_info(self) -> JobDetailTypeDef:
         """Return verbose details about this job"""
         return self.detail
 

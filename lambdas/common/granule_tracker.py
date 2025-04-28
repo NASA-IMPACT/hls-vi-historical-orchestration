@@ -87,7 +87,7 @@ class InventoryTrackerService:
     inventory_tracking_name: str = "progress.ndjson"
     client: S3Client = field(default_factory=lambda: boto3.client("s3"))
 
-    def _list_inventories(self) -> str:
+    def _list_inventories(self) -> list[str]:
         """List inventory object keys"""
         inventories = []
 

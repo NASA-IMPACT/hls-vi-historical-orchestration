@@ -20,7 +20,7 @@ if logger.hasHandlers():
 else:
     logging.basicConfig(level=logging.INFO)
 
-INVENTORY_ROW_REGEX = re.compile(r"^(\S+)\s(.*)\s(\S+)\s(t|f)$")
+INVENTORY_ROW_REGEX = r"^(\S+)\s(.*)\s(\S+)\s(t|f)$"
 
 
 @dataclass
@@ -45,7 +45,7 @@ class InventoryRow:
     @classmethod
     def parse_line(cls, line: str) -> InventoryRow:
         """Parse a row from the inventory report"""
-        if match := INVENTORY_ROW_REGEX.match(line):
+        if match := re.match(INVENTORY_ROW_REGEX, line):
             granule_id, maybe_datetime, status, published = match.groups()
             if maybe_datetime == r"\N":
                 start_datetime = None

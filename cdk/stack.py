@@ -277,7 +277,7 @@ class HlsViStack(Stack):
         self.job_retry_queue = aws_sqs.Queue(
             self,
             "JobRetryFailureQueue",
-            queue_name=settings.JOB_RETRY_FAILURE_QUEUE_NAME,
+            queue_name=settings.JOB_RETRY_QUEUE_NAME,
             dead_letter_queue=aws_sqs.DeadLetterQueue(
                 queue=self.job_failure_dlq,
                 # Route to DLQ immediately if we can't process

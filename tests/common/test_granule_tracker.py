@@ -100,7 +100,7 @@ class TestInventoryTrackerService:
 
         key = "inventories/PROD_sentinel_cumulus_rds_granule_blah.sorted.parquet"
         s3.upload_file(
-            parquet_file,
+            str(parquet_file),
             Bucket=service.bucket,
             Key=key,
         )
