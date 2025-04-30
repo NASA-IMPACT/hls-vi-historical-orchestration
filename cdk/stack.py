@@ -191,7 +191,7 @@ class HlsViStack(Stack):
             },
             layers=[sdk_for_pandas_layer],
             bundling=aws_lambda_python.BundlingOptions(
-                command_hooks=UvHooks(groups=None),
+                command_hooks=UvHooks(),
                 asset_excludes=LAMBDA_EXCLUDE,
             ),
             ephemeral_storage_size=Size.mebibytes(1500),
@@ -207,7 +207,7 @@ class HlsViStack(Stack):
         self.queue_feeder_lambda = aws_lambda_python.PythonFunction(
             self,
             "QueueFeederHandler",
-            entry=os.path.join("."),
+            entry=".",
             index="lambdas/queue_feeder/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
@@ -289,14 +289,12 @@ class HlsViStack(Stack):
             encryption=aws_sqs.QueueEncryption.SQS_MANAGED,
         )
 
-        self.job_monitor_lambda = aws_lambda.Function(
+        self.job_monitor_lambda = aws_lambda_python.PythonFunction(
             self,
             "JobMonitorHandler",
-            code=aws_lambda.Code.from_asset(
-                os.path.join("lambdas"),
-                exclude=LAMBDA_EXCLUDE,
-            ),
-            handler="job_monitor.handler.handler",
+            entry=".",
+            index="lambdas/job_monitor/handler.py",
+            handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=256,
             timeout=Duration.minutes(1),
@@ -310,6 +308,10 @@ class HlsViStack(Stack):
                     settings.PROCESSING_JOB_RETRY_ATTEMPTS
                 ),
             },
+            bundling=aws_lambda_python.BundlingOptions(
+                command_hooks=UvHooks(),
+                asset_excludes=LAMBDA_EXCLUDE,
+            ),
         )
 
         self.processing_bucket.grant_read_write(
@@ -348,14 +350,12 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # Requeuer
         # ----------------------------------------------------------------------
-        self.job_requeuer_lambda = aws_lambda.Function(
+        self.job_requeuer_lambda = aws_lambda_python.PythonFunction(
             self,
             "JobRequeuerHandler",
-            code=aws_lambda.Code.from_asset(
-                os.path.join("lambdas"),
-                exclude=LAMBDA_EXCLUDE,
-            ),
-            handler="job_requeuer.handler.handler",
+            entry=".",
+            index="lambdas/job_requeuer/handler.py",
+            handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=256,
             timeout=Duration.minutes(1),
@@ -363,6 +363,10 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
             },
+            bundling=aws_lambda_python.BundlingOptions(
+                command_hooks=UvHooks(),
+                asset_excludes=LAMBDA_EXCLUDE,
+            ),
         )
 
         self.processing_bucket.grant_read_write(
