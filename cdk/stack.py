@@ -75,7 +75,6 @@ class HlsViStack(Stack):
                 aws_s3.LifecycleRule(expired_object_delete_marker=True),
                 aws_s3.LifecycleRule(
                     abort_incomplete_multipart_upload_after=Duration.days(1),
-                    expiration=Duration.days(1),
                     noncurrent_version_expiration=Duration.days(1),
                 ),
             ],
