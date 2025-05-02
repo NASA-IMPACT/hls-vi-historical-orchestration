@@ -148,7 +148,7 @@ def handler(event, context):
     s3 = boto3.client("s3")
 
     # Destination
-    dest_bucket = os.environ["PROCESSING_BUCKET"]
+    dest_bucket = os.environ["PROCESSING_BUCKET_NAME"]
     dest_prefix = os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"].rstrip("/")
 
     # Source

@@ -107,7 +107,7 @@ class AwsBatchClient:
     def submit_job(self, event: GranuleProcessingEvent, force_fail: bool) -> str:
         """Submit granule processing event to queue, returning job ID"""
         # TODO: once we're ready, remove the command override
-        command = ["/bin/bash", "-c", "exit {int(force_fail)}"]
+        command = ["/bin/bash", "-c", f"exit {int(force_fail)}"]
 
         job_name = f"{event.granule_id.replace('.', '-')}_{event.attempt}"
         resp = self.client.submit_job(

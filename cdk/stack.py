@@ -168,7 +168,7 @@ class HlsViStack(Stack):
             memory_size=1024,
             timeout=Duration.minutes(10),
             environment={
-                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
             },
             bundling=aws_lambda_python.BundlingOptions(
@@ -295,7 +295,7 @@ class HlsViStack(Stack):
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
-                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_LOG_PREFIX": settings.PROCESSING_BUCKET_LOG_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "JOB_RETRY_QUEUE_URL": self.job_retry_queue.queue_url,
@@ -311,7 +311,7 @@ class HlsViStack(Stack):
         )
 
         self.processing_bucket.grant_read_write(
-            self.queue_feeder_lambda,
+            self.job_monitor_lambda,
         )
         self.job_retry_queue.grant_send_messages(self.job_monitor_lambda)
         self.job_failure_dlq.grant_send_messages(self.job_monitor_lambda)
@@ -356,7 +356,7 @@ class HlsViStack(Stack):
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
-                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
             },
             bundling=aws_lambda_python.BundlingOptions(

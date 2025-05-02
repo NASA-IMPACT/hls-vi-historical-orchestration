@@ -15,16 +15,18 @@ from common.granule_tracker import (
 class TestInventoryProgress:
     """Tests for InventoryProgress"""
 
-    def test_new(self):
-        progress = InventoryProgress.new("some-inventory")
-        assert progress.submitted_count == 0
-        assert progress.is_complete is False
-
-    def to_from_json(self):
-        progress = InventoryProgress("some-inventory", 0, False)
+    def test_to_from_json(self):
+        progress = InventoryProgress("some-inventory", 0, 10)
         as_json = progress.to_json()
         from_json = InventoryProgress.from_json(as_json)
         assert from_json == progress
+
+    def test_is_complete(self):
+        progress = InventoryProgress("some-inventory", 0, 10)
+        assert not progress.is_complete
+
+        progress.submitted_count = progress.total_count
+        assert progress.is_complete
 
 
 class TestInventoryTracking:
@@ -46,14 +48,14 @@ class TestInventoryTracking:
         """Test aggregate 'is_complete'"""
         tracking = InventoryTracking(
             inventories=[
-                InventoryProgress("sentinel", 0, False),
-                InventoryProgress("landsat", 10000, True),
+                InventoryProgress("sentinel", 0, 10),
+                InventoryProgress("landsat", 10, 10),
             ],
             etag="asdf",
         )
         assert not tracking.is_complete
 
-        tracking.inventories[0].is_complete = True
+        tracking.inventories[0].submitted_count = 10
         assert tracking.is_complete
 
 
@@ -104,7 +106,7 @@ class TestInventoryTrackerService:
             Bucket=service.bucket,
             Key=key,
         )
-        return key
+        return f"s3://{service.bucket}/{key}"
 
     def test_service_list_inventories(
         self, service: InventoryTrackerService, inventory: str
