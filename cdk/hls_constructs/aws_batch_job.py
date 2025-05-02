@@ -1,3 +1,5 @@
+from typing import Literal
+
 from aws_cdk import Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
 
@@ -14,6 +16,7 @@ class BatchJob(Construct):
         memory_mb: int,
         retry_attempts: int,
         log_group_name: str,
+        stage: Literal["dev", "prod"],
         **kwargs,
     ):
         super().__init__(scope, construct_id, **kwargs)
@@ -28,6 +31,7 @@ class BatchJob(Construct):
             self,
             "TaskRole",
             assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            role_name=f"hls-vi-historical-processing-role-{stage}",
         )
 
         self.job_def = aws_batch.EcsJobDefinition(
