@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, TypedDict
 import boto3
 from dataclasses import dataclass, field
 
-from common.models import GranuleProcessingEvent, JobOutcome
+from lambdas.common.models import GranuleProcessingEvent, JobOutcome
 
 if TYPE_CHECKING:
     from mypy_boto3_batch.client import BatchClient
@@ -78,10 +78,12 @@ class JobDetails:
 class AwsBatchClient:
     """A high level client for interfacing with AWS Batch"""
 
+    queue: str
+    job_definition: str
     client: BatchClient = field(default_factory=lambda: boto3.client("batch"))
 
-    def submitted_jobs_below_threshold(self, queue: str, threshold: int) -> int:
-        """Get the number of jobs in the SUBMITTED state
+    def active_jobs_below_threshold(self, threshold: int) -> int:
+        """Get the number of jobs in an active state
 
         AWS Batch has a default service limit of 1,000,000 jobs per region
         in the SUBMITTED state. To avoid reaching this service limit without
@@ -91,14 +93,30 @@ class AwsBatchClient:
         paginator = self.client.get_paginator("list_jobs")
 
         job_count = 0
-        for job in paginator.paginate(
-            jobQueue=queue,
-            jobStatus="SUBMITTED",
-        ):
-            job_count += 1
+        for status in {"SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"}:
+            for job in paginator.paginate(
+                jobQueue=self.queue,
+                jobStatus=status,
+            ):
+                job_count += 1
+                if job_count >= threshold:
+                    return False
 
         return job_count < threshold
 
-    def submit_job(self, queue: str, job_definition: str, command: list[str]) -> str:
-        """Submit command to queue, returning job ID"""
-        raise NotImplementedError()
+    def submit_job(self, event: GranuleProcessingEvent, force_fail: bool) -> str:
+        """Submit granule processing event to queue, returning job ID"""
+        # TODO: once we're ready, remove the command override
+        command = ["/bin/bash", "-c", "exit {int(force_fail)}"]
+
+        job_name = f"{event.granule_id.replace('.', '-')}_{event.attempt}"
+        resp = self.client.submit_job(
+            jobDefinition=self.job_definition,
+            jobName=job_name,
+            jobQueue=self.queue,
+            containerOverrides={
+                "environment": event.to_environment(),
+                "command": command,
+            }
+        )
+        return resp["jobId"]

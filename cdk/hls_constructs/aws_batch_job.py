@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from aws_cdk import Size, aws_batch, aws_ecs, aws_iam, aws_logs
+from aws_cdk import Aws, Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
 
 
@@ -63,3 +63,14 @@ class BatchJob(Construct):
                 ),
             ],
         )
+
+        # It's useful to have the ARN of the job definition _without_ the revision
+        # so submitted jobs use the "latest" active job
+        self.job_def_arn_without_revision = ":".join([
+            "arn",
+            "aws",
+            "batch",
+            Aws.REGION,
+            Aws.ACCOUNT_ID,
+            f"job-definition/{self.job_def.job_definition_name}"
+        ])

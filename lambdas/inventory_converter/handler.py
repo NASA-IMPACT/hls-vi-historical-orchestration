@@ -10,8 +10,9 @@ from tempfile import TemporaryDirectory
 from typing import Literal
 
 import boto3
-import pandas as pd
 import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.csv as pcsv
 import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,19 @@ if logger.hasHandlers():
 else:
     logging.basicConfig(level=logging.INFO)
 
-INVENTORY_ROW_REGEX = r"^(\S+)\s(.*)\s(\S+)\s(t|f)$"
+INVENTORY_ROW_REGEX = (
+    r"^(?<granule_id>\S+)\s(?<start_datetime>.*)\s(?<status>\S+)\s(?<published>t|f)$"
+)
+
+
+INVENTORY_SCHEMA = pa.schema(
+    [  # type: ignore[arg-type]
+        pa.field("granule_id", pa.string()),
+        pa.field("start_datetime", pa.date64(), nullable=True),
+        pa.field("status", pa.string()),
+        pa.field("published", pa.bool_()),
+    ]
+)
 
 
 @dataclass
@@ -64,50 +77,60 @@ class InventoryRow:
         raise ValueError(f"Could not parse line ({line})")
 
     @staticmethod
-    def parse_series(series: pd.Series) -> pd.DataFrame:
-        """Parse each row from a Pandas Series into Pandas DataFrame"""
-        df = series.str.extract(INVENTORY_ROW_REGEX)
-        df.columns = ["granule_id", "start_datetime", "status", "published"]  # type: ignore[assignment]
+    def parse_table(table: pa.Table) -> pa.Table:
+        """Parse each row of CSV 'contents' from a PyArrow Table"""
+        parsed = pc.extract_regex(table, INVENTORY_ROW_REGEX)
+        parsed_table_raw = pa.Table.from_struct_array(parsed)
 
-        # sanitize datetime
-        df["start_datetime"] = (
-            df["start_datetime"]
-            .str.replace("\\ ", "T")
-            .str.replace("\\N", "NaT")
-            .str.replace("+00", "Z")
+        start_datetime_str = pc.replace_substring(
+            pc.replace_substring(
+                pc.replace_substring(
+                    parsed_table_raw["start_datetime"],
+                    "\\ ",
+                    "T",
+                    max_replacements=1,
+                ),
+                "\\N",
+                "NaT",
+                max_replacements=1,
+            ),
+            "+00",
+            "Z",
+            max_replacements=1,
         )
-        df["start_datetime"] = pd.to_datetime(
-            df["start_datetime"],
-            format="ISO8601",
+        # pyarrow is not so good at datetime parsing right now
+        start_datetime = pa.array([
+            dt.datetime.fromisoformat(s) if s != "NaT" else None
+            for s in map(str, start_datetime_str)
+        ])
+
+        published = pc.equal(parsed_table_raw["published"], "t")
+
+        parsed_table = pa.Table.from_arrays(
+            [
+                parsed_table_raw["granule_id"],
+                start_datetime,
+                parsed_table_raw["status"],
+                published,
+            ],
+            schema=INVENTORY_SCHEMA,
         )
-        df["published"] = df["published"] == "t"
-        return df
+
+        return parsed_table
 
 
-def convert_inventory_to_parquet(inventory: Path, destination: Path):
+def convert_inventory_to_parquet(inventory: str | Path, destination: Path):
     """Convert an inventory file to Parquet"""
-    schema = pa.schema(
-        [  # type: ignore[arg-type]
-            pa.field("granule_id", pa.string()),
-            pa.field("start_datetime", pa.date64(), nullable=True),
-            pa.field("status", pa.string()),
-            pa.field("published", pa.bool_()),
-        ]
+    reader = pcsv.open_csv(
+        str(inventory), read_options=pcsv.ReadOptions(column_names=["contents"])
     )
-
-    reader = pd.read_csv(
-        inventory,
-        iterator=True,
-        chunksize=100_000,
-        header=None,
-        names=["contents"],
-    )
-    with pq.ParquetWriter(destination, schema, compression="snappy") as writer:
+    with pq.ParquetWriter(
+        destination, INVENTORY_SCHEMA, compression="snappy"
+    ) as writer:
         for i, chunk in enumerate(reader):
             logger.info(f"Processing chunk={i}")
-            parsed = InventoryRow.parse_series(chunk["contents"])
-            table = pa.Table.from_pandas(parsed, schema=schema, preserve_index=False)
-            writer.write(table)
+            parsed = InventoryRow.parse_table(chunk["contents"])
+            writer.write(parsed)
     return destination
 
 

@@ -3,6 +3,7 @@ from typing import Any
 
 import jsii
 from aws_cdk import (
+    Aws,
     Duration,
     RemovalPolicy,
     Size,
@@ -13,7 +14,6 @@ from aws_cdk import (
     aws_iam,
     aws_lambda,
     aws_s3,
-    aws_ssm,
     aws_sqs,
 )
 from aws_cdk import aws_lambda_python_alpha as aws_lambda_python
@@ -156,30 +156,12 @@ class HlsViStack(Stack):
         self.lpdaac_public_bucket.grant_read(self.processing_job.role)
 
         # ----------------------------------------------------------------------
-        # Lambda layers
-        # ----------------------------------------------------------------------
-        # This layer has a really small build of Pandas/NumPy/PyArrow that was
-        # built by the "awswrangler" (aka sdk-for-pandas) project
-        sdk_for_pandas_layer_arn = aws_ssm.StringParameter.from_string_parameter_attributes(
-            self,
-            "AwsSdkPandasLayerArn",
-            parameter_name="/aws/service/aws-sdk-pandas/3.11.0/py3.12/x86_64/layer-arn",
-        ).string_value
-        sdk_for_pandas_layer = (
-            aws_lambda_python.PythonLayerVersion.from_layer_version_arn(
-                self,
-                "AwsSdkPandasLayer",
-                sdk_for_pandas_layer_arn,
-            )
-        )
-
-        # ----------------------------------------------------------------------
-        # One off inventory conversion Lambda
+        # One-off inventory conversion Lambda
         # ----------------------------------------------------------------------
         self.inventory_converter_lambda = aws_lambda_python.PythonFunction(
             self,
             "InventoryConverterHandler",
-            entry=os.path.join("."),
+            entry=".",
             index="lambdas/inventory_converter/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
@@ -189,9 +171,8 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
             },
-            layers=[sdk_for_pandas_layer],
             bundling=aws_lambda_python.BundlingOptions(
-                command_hooks=UvHooks(),
+                command_hooks=UvHooks(groups=["arrow"]),
                 asset_excludes=LAMBDA_EXCLUDE,
             ),
             ephemeral_storage_size=Size.mebibytes(1500),
@@ -215,14 +196,15 @@ class HlsViStack(Stack):
             timeout=Duration.minutes(10),
             reserved_concurrent_executions=1,
             environment={
-                "PROCESSING_BUCKET": self.processing_bucket.bucket_name,
+                "FEEDER_MAX_ACTIVE_JOBS": str(settings.FEEDER_MAX_ACTIVE_JOBS),
+                "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_JOB_PREFIX": settings.PROCESSING_BUCKET_JOB_PREFIX,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
+                "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
             },
-            layers=[sdk_for_pandas_layer],
             bundling=aws_lambda_python.BundlingOptions(
-                command_hooks=UvHooks(),
+                command_hooks=UvHooks(groups=["arrow"]),
                 asset_excludes=LAMBDA_EXCLUDE,
             ),
         )
@@ -231,34 +213,48 @@ class HlsViStack(Stack):
             self.queue_feeder_lambda,
         )
 
+        # Ref: AWS Batch IAM actions/resources/conditions
+        # https://docs.aws.amazon.com/service-authorization/latest/reference/list_awsbatch.html
         self.queue_feeder_lambda.add_to_role_policy(
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
                 resources=[
                     self.batch_infra.queue.job_queue_arn,
-                    self.processing_job.job_def.job_definition_arn,
+                    self.processing_job.job_def_arn_without_revision,
                 ],
                 actions=[
-                    "batch:ListJobs",
                     "batch:SubmitJob",
+                ],
+            )
+        )
+        self.queue_feeder_lambda.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=["*"],
+                actions=[
+                    "batch:ListJobs",
                 ],
             )
         )
 
         # Schedule queue feeder
-        self.queue_feeder_schedule = aws_events.Rule(
-            self,
-            "QueueFeederSchedule",
-            schedule=aws_events.Schedule.rate(
-                Duration.minutes(settings.FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES),
-            ),
-            targets=[
-                aws_events_targets.LambdaFunction(
-                    handler=self.queue_feeder_lambda,
-                    retry_attempts=3,
-                )
-            ],
-        )
+        # FIXME: when ready, schedule the queue feeding
+        # self.queue_feeder_schedule = aws_events.Rule(
+        #     self,
+        #     "QueueFeederSchedule",
+        #     schedule=aws_events.Schedule.rate(
+        #         Duration.minutes(settings.FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES),
+        #     ),
+        #     targets=[
+        #         aws_events_targets.LambdaFunction(
+        #             event=aws_events.RuleTargetInput.from_object({
+        #                 "granule_submit_count": settings.FEEDER_GRANULE_SUBMIT_COUNT,
+        #             }),
+        #             handler=self.queue_feeder_lambda,
+        #             retry_attempts=3,
+        #         )
+        #     ],
+        # )
 
         # ----------------------------------------------------------------------
         # Job monitor & retry system

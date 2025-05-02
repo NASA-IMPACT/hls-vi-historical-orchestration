@@ -23,6 +23,7 @@ dev = [
     "pytest-cov>=6.1.1",
     "pytest-lazy-fixtures>=1.1.2",
     "ruff>=0.11.4",
+    "pandas>=2,<3",
 ]
 deploy = [
     "aws-cdk-aws-lambda-python-alpha>=2.191.0a0",
@@ -30,16 +31,8 @@ deploy = [
     "constructs>=10.4.2",
     "pydantic-settings>=2.8.1",
 ]
-pandas = [
-    # Use "aws-sdk-pandas" (aka awswrangler) because they ship a Lambda Layer
-    # with really small builds for Pandas and PyArrow
-    #
-    # When upgrading, remember to upgrade the version in the CDK stack
-    # (variable "sdk_for_pandas_layer")
-    "awswrangler~=3.11.0",
-    # Installed by awswrangler, but listed here for our own record keeping...
-    "pandas>=2,<3",
-    "pyarrow>=18",
+arrow = [
+    "pyarrow>=18.1.0",
 ]
 
 [tool.uv]

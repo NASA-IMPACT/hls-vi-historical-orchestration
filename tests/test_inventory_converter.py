@@ -45,26 +45,6 @@ class TestInventoryRow:
         assert row.status == "failed"
         assert row.published is False
 
-    def test_parse_series(self, inventory: dict[str, str]):
-        """Test parsing as a Pandas DataFrame"""
-        series = pd.Series(list(inventory.values()))
-        parsed = InventoryRow.parse_series(series)
-        np.testing.assert_array_equal(
-            parsed.columns, ["granule_id", "start_datetime", "status", "published"]
-        )
-        np.testing.assert_array_equal(
-            parsed["granule_id"],
-            [
-                "HLS.S30.T01FBE.2022224T215909.v2.0",
-                "HLS.S30.T01GEL.2019059T213751.v2.0",
-                "HLS.S30.T35MNT.2024365T082341.v2.0",
-            ],
-        )
-        np.testing.assert_array_equal(
-            parsed["status"], ["completed", "queued", "failed"]
-        )
-        np.testing.assert_array_equal(parsed["published"], [True, False, False])
-
 
 def test_convert_inventory_to_parquet(tmp_path: Path, inventory: dict[str, str]):
     """Test conversion of inventory into Parquet"""

@@ -53,6 +53,7 @@ class StackSettings(BaseSettings):
     # ----- Job feeder
     FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES: int = 60
     FEEDER_MAX_ACTIVE_JOBS: int = 10_000
+    FEEDER_GRANULE_SUBMIT_COUNT: int = 50  # 5_000
     FEEDER_JOBS_PER_ARRAY_TASK: int = 1_000
 
     # ----- Job retry system

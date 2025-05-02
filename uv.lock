@@ -100,25 +100,6 @@ wheels = [
 ]
 
 [[package]]
-name = "awswrangler"
-version = "3.11.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "boto3" },
-    { name = "botocore" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "pandas" },
-    { name = "pyarrow" },
-    { name = "setuptools" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/89/7b58b22b93204caa2b9b567b9f3dd908be65fb36db012f034c7646331dea/awswrangler-3.11.0.tar.gz", hash = "sha256:bdd05a96907a9d71896b80ec109b2fbc700427ebc2e3e6ed11a0490e135242a6", size = 1230312 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/18/12642bf4a5e0e27ea285953f90bd676693e5c5191fc7790c2137941d15a0/awswrangler-3.11.0-py3-none-any.whl", hash = "sha256:ca7a1027a33a8c8fcc140e30b5fb284e20e8ee2f74069e0e84d8a4d5cc788a12", size = 379042 },
-]
-
-[[package]]
 name = "boto-session-manager"
 version = "1.8.1"
 source = { registry = "https://pypi.org/simple" }
@@ -398,6 +379,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+arrow = [
+    { name = "pyarrow" },
+]
 deploy = [
     { name = "aws-cdk-aws-lambda-python-alpha" },
     { name = "aws-cdk-lib" },
@@ -408,6 +392,7 @@ dev = [
     { name = "boto3-stubs", extra = ["batch", "s3", "sqs"] },
     { name = "moto" },
     { name = "mypy" },
+    { name = "pandas" },
     { name = "pandas-stubs" },
     { name = "pyarrow-stubs" },
     { name = "pytest" },
@@ -418,16 +403,12 @@ dev = [
 lambda = [
     { name = "boto3" },
 ]
-pandas = [
-    { name = "awswrangler" },
-    { name = "pandas" },
-    { name = "pyarrow" },
-]
 
 [package.metadata]
 requires-dist = [{ name = "s3pathlib", specifier = ">=2.3.2" }]
 
 [package.metadata.requires-dev]
+arrow = [{ name = "pyarrow", specifier = ">=18.1.0" }]
 deploy = [
     { name = "aws-cdk-aws-lambda-python-alpha", specifier = ">=2.191.0a0" },
     { name = "aws-cdk-lib", specifier = ">=2.188.0" },
@@ -438,6 +419,7 @@ dev = [
     { name = "boto3-stubs", extras = ["batch", "s3", "sqs"], specifier = ">=1.37.36" },
     { name = "moto", specifier = ">=5.1.3" },
     { name = "mypy", specifier = ">=1.15.0" },
+    { name = "pandas", specifier = ">=2,<3" },
     { name = "pandas-stubs", specifier = ">=2.2.3.250308" },
     { name = "pyarrow-stubs", specifier = ">=17.19" },
     { name = "pytest", specifier = ">=8.3.5" },
@@ -446,11 +428,6 @@ dev = [
     { name = "ruff", specifier = ">=0.11.4" },
 ]
 lambda = [{ name = "boto3", specifier = ">=1.37.28" }]
-pandas = [
-    { name = "awswrangler", specifier = "~=3.11.0" },
-    { name = "pandas", specifier = ">=2,<3" },
-    { name = "pyarrow", specifier = ">=18" },
-]
 
 [[package]]
 name = "idna"
@@ -1063,15 +1040,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0f/ec/aa1a215e5c126fe5decbee2e107468f51d9ce190b9763cb649f76bb45938/s3transfer-0.11.4.tar.gz", hash = "sha256:559f161658e1cf0a911f45940552c696735f5c74e64362e515f333ebed87d679", size = 148419 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/86/62/8d3fc3ec6640161a5649b2cddbbf2b9fa39c92541225b33f117c37c5a2eb/s3transfer-0.11.4-py3-none-any.whl", hash = "sha256:ac265fa68318763a03bf2dc4f39d5cbd6a9e178d81cc9483ad27da33637e320d", size = 84412 },
-]
-
-[[package]]
-name = "setuptools"
-version = "79.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/bb/71/b6365e6325b3290e14957b2c3a804a529968c77a049b2ed40c095f749707/setuptools-79.0.1.tar.gz", hash = "sha256:128ce7b8f33c3079fd1b067ecbb4051a66e8526e7b65f6cec075dfc650ddfa88", size = 1367909 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/6d/b4752b044bf94cb802d88a888dc7d288baaf77d7910b7dedda74b5ceea0c/setuptools-79.0.1-py3-none-any.whl", hash = "sha256:e147c0549f27767ba362f9da434eab9c5dc0045d5304feb602a0af001089fc51", size = 1256281 },
 ]
 
 [[package]]

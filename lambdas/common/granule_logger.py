@@ -12,7 +12,7 @@ from botocore.exceptions import ClientError
 from boto_session_manager import BotoSesManager
 from s3pathlib import S3Path
 
-from common import (
+from lambdas.common import (
     GranuleProcessingEvent,
     GranuleId,
     JobOutcome,

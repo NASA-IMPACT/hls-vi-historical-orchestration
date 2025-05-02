@@ -18,12 +18,12 @@ import os
 
 import boto3
 
-from common import (
+from lambdas.common import (
     JobDetails,
     JobChangeEvent,
     JobOutcome,
 )
-from common.granule_logger import GranuleLoggerService
+from lambdas.common.granule_logger import GranuleLoggerService
 
 logger = logging.getLogger(__name__)
 if logger.hasHandlers():
