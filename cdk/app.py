@@ -10,7 +10,7 @@ app = App()
 stack = HlsViStack(
     app,
     settings.STACK_NAME,
-    settings,
+    settings=settings,
     env={"account": settings.MCP_ACCOUNT_ID, "region": settings.MCP_ACCOUNT_REGION},
 )
 

@@ -1,3 +1,5 @@
+from typing import Any
+
 from aws_cdk import CfnOutput, aws_batch, aws_ec2
 from constructs import Construct
 
@@ -9,10 +11,11 @@ class BatchInfra(Construct):
         self,
         scope: Construct,
         construct_id: str,
+        *,
         vpc: aws_ec2.IVpc,
         max_vcpu: int,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         ecs_machine_image = aws_batch.EcsMachineImage(

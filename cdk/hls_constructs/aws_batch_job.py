@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from aws_cdk import Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
@@ -11,14 +11,15 @@ class BatchJob(Construct):
         self,
         scope: Construct,
         construct_id: str,
+        *,
         container_ecr_uri: str,
         vcpu: int,
         memory_mb: int,
         retry_attempts: int,
         log_group_name: str,
         stage: Literal["dev", "prod"],
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         self.log_group = aws_logs.LogGroup(

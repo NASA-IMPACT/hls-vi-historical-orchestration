@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from aws_cdk import (
     Duration,
@@ -26,7 +27,7 @@ class HlsViStack(Stack):
     """HLS-VI historical processing CDK stack."""
 
     def __init__(
-        self, scope: Construct, stack_id: str, settings: StackSettings, **kwargs
+        self, scope: Construct, stack_id: str, *, settings: StackSettings, **kwargs: Any
     ) -> None:
         super().__init__(scope, stack_id, **kwargs)
 
@@ -46,15 +47,15 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # Buckets
         # ----------------------------------------------------------------------
-        self.lpdaac_granule_bucket = aws_s3.Bucket.from_bucket_name(
+        self.lpdaac_private_bucket = aws_s3.Bucket.from_bucket_name(
             self,
-            "LpdaacGranuleBucket",
-            bucket_name=settings.LPDAAC_GRANULE_BUCKET_NAME,
+            "LpdaacPrivateBucket",
+            bucket_name=settings.LPDAAC_PRIVATE_BUCKET_NAME,
         )
-        self.lpdaac_metadata_bucket = aws_s3.Bucket.from_bucket_name(
+        self.lpdaac_public_bucket = aws_s3.Bucket.from_bucket_name(
             self,
-            "LpdaacMetadataBucket",
-            bucket_name=settings.LPDAAC_METADATA_BUCKET_NAME,
+            "LpdaacPublicBucket",
+            bucket_name=settings.LPDAAC_PUBLIC_BUCKET_NAME,
         )
 
         self.output_bucket = aws_s3.Bucket.from_bucket_name(
@@ -105,8 +106,8 @@ class HlsViStack(Stack):
         )
         self.processing_bucket.grant_read_write(self.processing_job.role)
         self.output_bucket.grant_read_write(self.processing_job.role)
-        self.lpdaac_granule_bucket.grant_read(self.processing_job.role)
-        self.lpdaac_metadata_bucket.grant_read(self.processing_job.role)
+        self.lpdaac_private_bucket.grant_read(self.processing_job.role)
+        self.lpdaac_public_bucket.grant_read(self.processing_job.role)
 
         # ----------------------------------------------------------------------
         # Queue feeder

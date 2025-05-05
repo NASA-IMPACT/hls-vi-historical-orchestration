@@ -32,6 +32,7 @@ class InventoryProgressTracker:
         """Convert to JSON for storage in SSM"""
         return json.dumps(asdict(self))
 
+    @classmethod
     def from_json(cls, json_str: str) -> InventoryProgressTracker:
         """Parse from JSON"""
         return cls(**json.loads(json_str))

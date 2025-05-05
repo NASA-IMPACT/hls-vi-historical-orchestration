@@ -22,10 +22,10 @@ class StackSettings(BaseSettings):
     PROCESSING_BUCKET_FAILURE_PREFIX: str = "failures"
     PROCESSING_BUCKET_JOB_PREFIX: str = "jobs"
 
-    # LDPAAC granule input bucket (*tif files)
-    LPDAAC_GRANULE_BUCKET_NAME: str
+    # LDPAAC private input bucket (*tif files)
+    LPDAAC_PRIVATE_BUCKET_NAME: str
     # LPDAAC metadata input bucket (STAC Items & thumbnails)
-    LPDAAC_METADATA_BUCKET_NAME: str
+    LPDAAC_PUBLIC_BUCKET_NAME: str
 
     # Output bucket for HLS-VI output files
     OUTPUT_BUCKET_NAME: str
