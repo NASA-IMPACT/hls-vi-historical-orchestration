@@ -22,23 +22,41 @@ class StackSettings(BaseSettings):
     PROCESSING_BUCKET_FAILURE_PREFIX: str = "failures"
     PROCESSING_BUCKET_JOB_PREFIX: str = "jobs"
 
-    # LDPAAC granule input bucket (*tif files)
-    LPDAAC_GRANULE_BUCKET_NAME: str
+    # LDPAAC private input bucket (*tif files)
+    LPDAAC_PRIVATE_BUCKET_NAME: str
     # LPDAAC metadata input bucket (STAC Items & thumbnails)
-    LPDAAC_METADATA_BUCKET_NAME: str
+    LPDAAC_PUBLIC_BUCKET_NAME: str
 
     # Output bucket for HLS-VI output files
     OUTPUT_BUCKET_NAME: str
 
     # ----- HLS-VI processing
-    # AWS Batch processing system
-    BATCH_JOB_QUEUE_NAME: str
+    PROCESSING_CONTAINER_ECR_URI: str
+    # Job vCPU and memory limits
+    PROCESSING_JOB_VCPU: int = 1
+    PROCESSING_JOB_MEMORY_MB: int = 4_000
+    # Custom log group (otherwise they'll land in the catch-all AWS Batch log group)
+    PROCESSING_LOG_GROUP_NAME: str
+    # Number of internal AWS Batch job retries
+    PROCESSING_JOB_RETRY_ATTEMPTS: int = 3
+
     # TODO: increase instance types allowed
+    # Cluster instance types
     BATCH_INSTANCE_TYPES: list[str] = [
         "m6i.xlarge",
         "m6i.2xlarge",
+        "m6i.4xlarge",
     ]
+    # Cluster scaling max
+    BATCH_MAX_VCPU: int = 10
 
-    # Job feeder
+    # ----- Job feeder
+    FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES: int = 60
     FEEDER_MAX_ACTIVE_JOBS: int = 10_000
     FEEDER_JOBS_PER_ARRAY_TASK: int = 1_000
+
+    # ----- Job retry system
+    # Send failed AWS Batch jobs to this queue
+    JOB_RETRY_FAILURE_QUEUE_NAME: str
+    # Give up requeueing after N attempts
+    JOB_RETRY_MAX_ATTEMPTS: int = 3

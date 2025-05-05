@@ -21,7 +21,7 @@ deploy = [
     "pydantic-settings>=2.8.1",
 ]
 
-[tool.pytest]
+[tool.pytest.ini_options]
 testpaths = [
     "tests"
 ]
@@ -33,3 +33,7 @@ line-length = 88
 [tool.mypy]
 files = ["cdk", "tests"]
 plugins = ["pydantic.mypy"]
+pretty = true
+strict = true
+show_error_code_links = true
+show_error_context = true
