@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal
+from typing import Any, Literal, cast
 
 import boto3
 import pyarrow as pa
@@ -21,9 +21,8 @@ if logger.hasHandlers():
 else:
     logging.basicConfig(level=logging.INFO)
 
-INVENTORY_ROW_REGEX = (
-    r"^(?<granule_id>\S+)\s(?<start_datetime>.*)\s(?<status>\S+)\s(?<published>t|f)$"
-)
+
+INVENTORY_ROW_REGEX = r"^(?P<granule_id>\S+)\s(?P<start_datetime>.*)\s(?P<status>\S+)\s(?P<published>t|f)$"
 
 
 INVENTORY_SCHEMA = pa.schema(
@@ -77,9 +76,9 @@ class InventoryRow:
         raise ValueError(f"Could not parse line ({line})")
 
     @staticmethod
-    def parse_table(table: pa.Table) -> pa.Table:
+    def parse_table(array: pa.StringArray) -> pa.Table:
         """Parse each row of CSV 'contents' from a PyArrow Table"""
-        parsed = pc.extract_regex(table, INVENTORY_ROW_REGEX)
+        parsed = pc.extract_regex(array, INVENTORY_ROW_REGEX)
         parsed_table_raw = pa.Table.from_struct_array(parsed)
 
         start_datetime_str = pc.replace_substring(
@@ -99,12 +98,14 @@ class InventoryRow:
             max_replacements=1,
         )
         # pyarrow is not so good at datetime parsing right now
-        start_datetime = pa.array([
-            dt.datetime.fromisoformat(s) if s != "NaT" else None
-            for s in map(str, start_datetime_str)
-        ])
+        start_datetime = pa.array(
+            [
+                dt.datetime.fromisoformat(s) if s != "NaT" else None
+                for s in map(str, start_datetime_str)
+            ]
+        )
 
-        published = pc.equal(parsed_table_raw["published"], "t")
+        published = pc.equal(parsed_table_raw["published"], pa.scalar("t"))
 
         parsed_table = pa.Table.from_arrays(
             [
@@ -119,7 +120,7 @@ class InventoryRow:
         return parsed_table
 
 
-def convert_inventory_to_parquet(inventory: str | Path, destination: Path):
+def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> None:
     """Convert an inventory file to Parquet"""
     reader = pcsv.open_csv(
         str(inventory), read_options=pcsv.ReadOptions(column_names=["contents"])
@@ -129,12 +130,11 @@ def convert_inventory_to_parquet(inventory: str | Path, destination: Path):
     ) as writer:
         for i, chunk in enumerate(reader):
             logger.info(f"Processing chunk={i}")
-            parsed = InventoryRow.parse_table(chunk["contents"])
+            parsed = InventoryRow.parse_table(cast(pa.StringArray, chunk["contents"]))
             writer.write(parsed)
-    return destination
 
 
-def handler(event, context):
+def handler(event: dict[str, str], context: Any) -> dict[str, str]:
     """Lambda handler for converting inventory flat files to Parquet
 
     The event payload is expected to look like,
@@ -168,7 +168,7 @@ def handler(event, context):
         convert_inventory_to_parquet(inventory_flatfile, inventory_parquet)
 
         s3.upload_file(
-            inventory_parquet,
+            str(inventory_parquet),
             dest_bucket,
             dest_key,
         )

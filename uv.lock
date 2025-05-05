@@ -100,6 +100,15 @@ wheels = [
 ]
 
 [[package]]
+name = "aws-lambda-typing"
+version = "2.20.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/2a/14e7a3dba738265db6eddfd0c9ec1619c0c14e48fcf70627fc75fca83305/aws-lambda-typing-2.20.0.tar.gz", hash = "sha256:78b0d8ebab73b3a6b0da98a7969f4e9c4bb497298ec50f3217da8a8dfba17154", size = 19413 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/55/3d/4031f5950d65e89136d20a18b5ac985d5f087c29c902f285b6e8063619e4/aws_lambda_typing-2.20.0-py3-none-any.whl", hash = "sha256:1d44264cabfeab5ac38e67ddd0c874e677b2cbbae77a42d0519df470e6bbb49b", size = 35296 },
+]
+
+[[package]]
 name = "boto-session-manager"
 version = "1.8.1"
 source = { registry = "https://pypi.org/simple" }
@@ -386,15 +395,16 @@ deploy = [
     { name = "aws-cdk-aws-lambda-python-alpha" },
     { name = "aws-cdk-lib" },
     { name = "constructs" },
-    { name = "pydantic-settings" },
 ]
 dev = [
+    { name = "aws-lambda-typing" },
     { name = "boto3-stubs", extra = ["batch", "s3", "sqs"] },
     { name = "moto" },
     { name = "mypy" },
     { name = "pandas" },
     { name = "pandas-stubs" },
     { name = "pyarrow-stubs" },
+    { name = "pydantic-settings" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-lazy-fixtures" },
@@ -413,15 +423,16 @@ deploy = [
     { name = "aws-cdk-aws-lambda-python-alpha", specifier = ">=2.191.0a0" },
     { name = "aws-cdk-lib", specifier = ">=2.188.0" },
     { name = "constructs", specifier = ">=10.4.2" },
-    { name = "pydantic-settings", specifier = ">=2.8.1" },
 ]
 dev = [
+    { name = "aws-lambda-typing", specifier = ">=2.20.0" },
     { name = "boto3-stubs", extras = ["batch", "s3", "sqs"], specifier = ">=1.37.36" },
     { name = "moto", specifier = ">=5.1.3" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "pandas", specifier = ">=2,<3" },
     { name = "pandas-stubs", specifier = ">=2.2.3.250308" },
     { name = "pyarrow-stubs", specifier = ">=17.19" },
+    { name = "pydantic-settings", specifier = ">=2.8.1" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=6.1.1" },
     { name = "pytest-lazy-fixtures", specifier = ">=1.1.2" },

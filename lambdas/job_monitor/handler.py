@@ -10,20 +10,19 @@ This Lambda monitors and potentially reroutes jobs from AWS Batch for a few scen
     * Logging: Job details are logged to AWS S3
 * [TODO] Successes are not currently logged
 
-
 """
 
 import logging
 import os
+from typing import Any
 
 import boto3
-
-from lambdas.common import (
-    JobDetails,
+from common import (
     JobChangeEvent,
+    JobDetails,
     JobOutcome,
 )
-from lambdas.common.granule_logger import GranuleLoggerService
+from common.granule_logger import GranuleLoggerService
 
 logger = logging.getLogger(__name__)
 if logger.hasHandlers():
@@ -32,7 +31,7 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-def handler(event: JobChangeEvent, context: dict):
+def handler(event: JobChangeEvent, context: Any) -> None:
     """Event handler for AWS Batch "job state change" events"""
     sqs = boto3.client("sqs")
 

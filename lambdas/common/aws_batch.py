@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 import boto3
-from dataclasses import dataclass, field
 
-from lambdas.common.models import GranuleProcessingEvent, JobOutcome
+from common.models import GranuleProcessingEvent, JobOutcome
 
 if TYPE_CHECKING:
     from mypy_boto3_batch.client import BatchClient
@@ -70,6 +70,7 @@ class JobDetails:
         env = {
             entry["name"]: entry["value"]
             for entry in self.detail["container"]["environment"]
+            if entry["name"] in {"GRANULE_ID", "ATTEMPT"}
         }
         return GranuleProcessingEvent.from_envvar(env)
 
@@ -96,7 +97,7 @@ class AwsBatchClient:
         for status in {"SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"}:
             for job in paginator.paginate(
                 jobQueue=self.queue,
-                jobStatus=status,
+                jobStatus=status,  # type: ignore[arg-type]
             ):
                 job_count += 1
                 if job_count >= threshold:
@@ -115,8 +116,8 @@ class AwsBatchClient:
             jobName=job_name,
             jobQueue=self.queue,
             containerOverrides={
-                "environment": event.to_environment(),
+                "environment": event.to_environment(),  # type: ignore
                 "command": command,
-            }
+            },
         )
         return resp["jobId"]

@@ -1,12 +1,11 @@
 import pytest
-from mypy_boto3_batch.type_defs import JobDetailTypeDef
-from pytest_lazy_fixtures import lf
-
 from common.aws_batch import (
     JobDetails,
     JobOutcome,
 )
 from common.models import GranuleProcessingEvent
+from mypy_boto3_batch.type_defs import JobDetailTypeDef
+from pytest_lazy_fixtures import lf
 
 
 class TestJobDetail:

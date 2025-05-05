@@ -2,14 +2,13 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from mypy_boto3_s3.client import S3Client
-
 from common.granule_tracker import (
     InventoryProgress,
-    InventoryTracking,
     InventoryTrackerService,
+    InventoryTracking,
     InventoryTrackingNotFoundError,
 )
+from mypy_boto3_s3.client import S3Client
 
 
 class TestInventoryProgress:
@@ -71,10 +70,10 @@ class TestInventoryTrackerService:
         )
 
     @pytest.fixture
-    def inventory(
+    def local_inventory(
         self, service: InventoryTrackerService, tmp_path: Path, s3: S3Client
     ) -> str:
-        """Create a fake inventory file"""
+        """Create a fake granule inventory file"""
         inventory_contents = [
             [
                 "HLS.S30.T01FBE.2022224T215909.v2.0",
@@ -99,33 +98,44 @@ class TestInventoryTrackerService:
 
         parquet_file = tmp_path / "inventory.parquet"
         df.to_parquet(parquet_file)
+        return str(parquet_file)
 
+    @pytest.fixture
+    def s3_inventory(
+        self, local_inventory: str, service: InventoryTrackerService, s3: S3Client
+    ) -> str:
+        """Create a fake granule inventory on S3"""
         key = "inventories/PROD_sentinel_cumulus_rds_granule_blah.sorted.parquet"
         s3.upload_file(
-            str(parquet_file),
+            local_inventory,
             Bucket=service.bucket,
             Key=key,
         )
         return f"s3://{service.bucket}/{key}"
 
     def test_service_list_inventories(
-        self, service: InventoryTrackerService, inventory: str
+        self, service: InventoryTrackerService, s3_inventory: str
     ):
         """Test listing inventory files"""
         inventories = service._list_inventories()
         assert len(inventories) == 1
-        assert inventories[0] == inventory
+        assert inventories[0] == s3_inventory
 
     def test_create_get_update_tracking(
-        self, service: InventoryTrackerService, inventory: str
+        self,
+        service: InventoryTrackerService,
+        local_inventory: str,
+        monkeypatch,
     ):
         """Test sequence of creating/getting/updating inventory"""
         with pytest.raises(InventoryTrackingNotFoundError):
             service.get_tracking()
 
+        monkeypatch.setattr(service, "_list_inventories", lambda: [local_inventory])
+
         created_tracking = service.create_tracking()
         assert len(created_tracking.inventories) == 1
-        assert created_tracking.inventories[0].inventory_key == inventory
+        assert created_tracking.inventories[0].inventory == local_inventory
         assert created_tracking.inventories[0].submitted_count == 0
         assert created_tracking.etag != ""
 

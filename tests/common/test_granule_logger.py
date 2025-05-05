@@ -3,11 +3,10 @@
 from typing import cast
 
 import pytest
-from mypy_boto3_batch.type_defs import KeyValuePairTypeDef, JobDetailTypeDef
-
-from common import ProcessingOutcome, GranuleProcessingEvent, GranuleId
+from common import GranuleId, GranuleProcessingEvent, ProcessingOutcome
 from common.aws_batch import JobDetails
 from common.granule_logger import GranuleLoggerService
+from mypy_boto3_batch.type_defs import JobDetailTypeDef, KeyValuePairTypeDef
 
 
 class TestGranuleLoggerService:

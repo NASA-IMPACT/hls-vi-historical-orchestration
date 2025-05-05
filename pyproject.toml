@@ -24,12 +24,13 @@ dev = [
     "pytest-lazy-fixtures>=1.1.2",
     "ruff>=0.11.4",
     "pandas>=2,<3",
+    "pydantic-settings>=2.8.1",
+    "aws-lambda-typing>=2.20.0",
 ]
 deploy = [
     "aws-cdk-aws-lambda-python-alpha>=2.191.0a0",
     "aws-cdk-lib>=2.188.0",
     "constructs>=10.4.2",
-    "pydantic-settings>=2.8.1",
 ]
 arrow = [
     "pyarrow>=18.1.0",
@@ -39,14 +40,12 @@ arrow = [
 default-groups = ["dev", "lambda"]
 
 [tool.pytest.ini_options]
+pythonpath = ["lambdas"]
 testpaths = [
     "tests"
 ]
-norecursedirs = ["cdk.out"]
-
-[tool.pytest.ini_options]
-pythonpath = ["lambdas"]
 addopts = "--cov=lambdas"
+norecursedirs = ["cdk.out"]
 
 [tool.coverage.report]
 show_missing = true
@@ -58,8 +57,11 @@ source = ["lambdas"]
 fix = true
 line-length = 88
 
+[tool.ruff.lint]
+select = ["I"]
+
 [tool.mypy]
-files = ["lambdas", "cdk", "tests"]
+files = ["lambdas"]
 plugins = ["pydantic.mypy"]
 pretty = true
 strict = true

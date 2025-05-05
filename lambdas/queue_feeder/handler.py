@@ -2,8 +2,9 @@
 
 import logging
 import os
+from typing import Any
 
-from lambdas.common import (
+from common import (
     AwsBatchClient,
     GranuleProcessingEvent,
     InventoryTrackerService,
@@ -17,7 +18,7 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-def handler(event, context):
+def handler(event: dict[str, int], context: Any) -> None:
     """Queue feeder Lambda handler
 
     The "event" payload contains,
@@ -34,10 +35,7 @@ def handler(event, context):
     max_active_jobs = int(os.environ["FEEDER_MAX_ACTIVE_JOBS"])
     granule_submit_count = event["granule_submit_count"]
 
-    batch = AwsBatchClient(
-        queue=job_queue,
-        job_definition=job_definition_name
-    )
+    batch = AwsBatchClient(queue=job_queue, job_definition=job_definition_name)
     tracker = InventoryTrackerService(
         bucket=bucket,
         inventories_prefix=prefix,
@@ -58,7 +56,7 @@ def handler(event, context):
 
     # FIXME: add a time check and abandon early if going to timeout
     for i, granule_id in enumerate(granule_ids):
-        event = GranuleProcessingEvent(granule_id=granule_id, attempt=0)
-        batch.submit_job(event, force_fail=bool(i % 2))
+        processing_event = GranuleProcessingEvent(granule_id=granule_id, attempt=0)
+        batch.submit_job(processing_event, force_fail=bool(i % 2))
 
     tracker.update_tracking(updated_tracking)

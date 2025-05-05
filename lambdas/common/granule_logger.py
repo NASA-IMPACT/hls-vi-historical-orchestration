@@ -8,15 +8,15 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from botocore.exceptions import ClientError
 from boto_session_manager import BotoSesManager
+from botocore.exceptions import ClientError
 from s3pathlib import S3Path
 
-from lambdas.common import (
-    GranuleProcessingEvent,
+from common import (
     GranuleId,
-    JobOutcome,
+    GranuleProcessingEvent,
     JobDetails,
+    JobOutcome,
     ProcessingOutcome,
 )
 
@@ -102,7 +102,9 @@ class GranuleLoggerService:
     prefix_to_outcome: ClassVar[dict[str, ProcessingOutcome]] = {
         value: key for key, value in outcome_to_prefix.items()
     }
-    attempt_log_regex: ClassVar[re.Pattern] = re.compile(r"^attempt\.[0-9]+\.json$")
+    attempt_log_regex: ClassVar[re.Pattern[str]] = re.compile(
+        r"^attempt\.[0-9]+\.json$"
+    )
 
     def _prefix_for_granule_id_outcome(
         self, granule_id: GranuleId, outcome: ProcessingOutcome
@@ -158,7 +160,7 @@ class GranuleLoggerService:
             paths.append(path)
         return paths
 
-    def _clean_failures(self, granule_id: str):
+    def _clean_failures(self, granule_id: str) -> None:
         """Cleanup failures"""
         for failure_path in self._list_logs_for_outcome(
             granule_id, ProcessingOutcome.FAILURE
@@ -170,7 +172,7 @@ class GranuleLoggerService:
             failure_path.copy_to(success_path)
             failure_path.delete()
 
-    def put_event_details(self, details: JobDetails):
+    def put_event_details(self, details: JobDetails) -> None:
         """Log event details"""
         event = details.get_granule_event()
         job_outcome = details.get_job_outcome()

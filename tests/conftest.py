@@ -5,14 +5,12 @@ from typing import Iterator
 
 import boto3
 import pytest
+from common.aws_batch import JobChangeEvent
+from common.models import GranuleId
 from moto import mock_aws
 from mypy_boto3_batch.type_defs import JobDetailTypeDef
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_sqs import SQSClient
-
-from common.aws_batch import JobChangeEvent
-from common.models import GranuleId
-
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

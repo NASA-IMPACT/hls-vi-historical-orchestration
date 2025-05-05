@@ -5,7 +5,7 @@ import json
 import re
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -76,6 +76,7 @@ class InventoryTracking:
         ]
         if incomplete_inventories:
             return incomplete_inventories[0]
+        return None
 
 
 class InventoryTrackingNotFoundError(FileNotFoundError):
@@ -111,7 +112,7 @@ class InventoryTrackerService:
         import pyarrow.dataset as ds
 
         dataset = ds.dataset(s3path)
-        scanner = dataset.to_scanner(ds)
+        scanner = dataset.scanner()
         total_count = scanner.count_rows()
         return InventoryProgress(
             inventory=s3path,
@@ -147,7 +148,7 @@ class InventoryTrackerService:
         ].to_pylist()
 
         next_inventory.submitted_count = end_row
-        return tracking, completed_granule_ids
+        return tracking, cast(list[str], completed_granule_ids)
 
     def create_tracking(self) -> InventoryTracking:
         """Create inventory progress tracking info"""

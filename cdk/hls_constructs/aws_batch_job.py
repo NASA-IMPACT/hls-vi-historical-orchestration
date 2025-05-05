@@ -66,11 +66,13 @@ class BatchJob(Construct):
 
         # It's useful to have the ARN of the job definition _without_ the revision
         # so submitted jobs use the "latest" active job
-        self.job_def_arn_without_revision = ":".join([
-            "arn",
-            "aws",
-            "batch",
-            Aws.REGION,
-            Aws.ACCOUNT_ID,
-            f"job-definition/{self.job_def.job_definition_name}"
-        ])
+        self.job_def_arn_without_revision = ":".join(
+            [
+                "arn",
+                "aws",
+                "batch",
+                Aws.REGION,
+                Aws.ACCOUNT_ID,
+                f"job-definition/{self.job_def.job_definition_name}",
+            ]
+        )

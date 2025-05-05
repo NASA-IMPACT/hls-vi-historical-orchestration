@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from enum import Enum, auto, unique
-from typing import Literal
-
 from dataclasses import asdict, dataclass
+from enum import Enum, auto, unique
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from mypy_boto3_batch.type_defs import KeyValuePairTypeDef
 
 
 @unique

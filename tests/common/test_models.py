@@ -1,5 +1,4 @@
 import pytest
-
 from common.models import (
     GranuleId,
     GranuleProcessingEvent,

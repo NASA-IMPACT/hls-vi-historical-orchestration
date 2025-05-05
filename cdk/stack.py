@@ -3,7 +3,7 @@ from typing import Any
 
 import jsii
 from aws_cdk import (
-    Aws,
+    DockerVolume,
     Duration,
     RemovalPolicy,
     Size,
@@ -18,7 +18,6 @@ from aws_cdk import (
 )
 from aws_cdk import aws_lambda_python_alpha as aws_lambda_python
 from constructs import Construct
-
 from hls_constructs import BatchInfra, BatchJob
 from settings import StackSettings
 
@@ -38,6 +37,18 @@ LAMBDA_EXCLUDE = [
     "scripts",
 ]
 
+UV_ASSET_REQUIREMENTS = "/asset-requirements"
+UV_DOCKER_VOLUMES = [
+    DockerVolume(
+        host_path=os.path.abspath(file),
+        container_path=f"{UV_ASSET_REQUIREMENTS}/{file}",
+    )
+    for file in (
+        "pyproject.toml",
+        "uv.lock",
+    )
+]
+
 
 @jsii.implements(aws_lambda_python.ICommandHooks)
 class UvHooks:
@@ -51,7 +62,9 @@ class UvHooks:
         self.groups = groups
 
     def after_bundling(self, input_dir: str, output_dir: str) -> list[str]:
-        return []
+        return [
+            "rm requirements.txt"
+        ]
 
     def before_bundling(self, input_dir: str, output_dir: str) -> list[str]:
         if self.groups:
@@ -64,8 +77,9 @@ class UvHooks:
             ". uv_venv/bin/activate",
             "pip install uv",
             "export UV_CACHE_DIR=/tmp",
-            f"uv export {groups_arg} --frozen --no-dev --no-default-groups --no-editable -o requirements.txt",
-            "rm -rf uv_venv",
+            f"cd {UV_ASSET_REQUIREMENTS}",
+            f"uv export {groups_arg} --frozen --no-dev --no-default-groups --no-editable -o {input_dir}/requirements.txt",
+            f"rm -rf {input_dir}/uv_venv",
         ]
 
 
@@ -161,8 +175,8 @@ class HlsViStack(Stack):
         self.inventory_converter_lambda = aws_lambda_python.PythonFunction(
             self,
             "InventoryConverterHandler",
-            entry=".",
-            index="lambdas/inventory_converter/handler.py",
+            entry="lambdas/",
+            index="inventory_converter/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=1024,
@@ -174,6 +188,7 @@ class HlsViStack(Stack):
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(groups=["arrow"]),
                 asset_excludes=LAMBDA_EXCLUDE,
+                volumes=UV_DOCKER_VOLUMES,
             ),
             ephemeral_storage_size=Size.mebibytes(1500),
         )
@@ -188,8 +203,8 @@ class HlsViStack(Stack):
         self.queue_feeder_lambda = aws_lambda_python.PythonFunction(
             self,
             "QueueFeederHandler",
-            entry=".",
-            index="lambdas/queue_feeder/handler.py",
+            entry="lambdas/",
+            index="queue_feeder/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=512,
@@ -206,6 +221,7 @@ class HlsViStack(Stack):
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(groups=["arrow"]),
                 asset_excludes=LAMBDA_EXCLUDE,
+                volumes=UV_DOCKER_VOLUMES,
             ),
         )
 
@@ -288,8 +304,8 @@ class HlsViStack(Stack):
         self.job_monitor_lambda = aws_lambda_python.PythonFunction(
             self,
             "JobMonitorHandler",
-            entry=".",
-            index="lambdas/job_monitor/handler.py",
+            entry="lambdas/",
+            index="job_monitor/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=256,
@@ -307,6 +323,7 @@ class HlsViStack(Stack):
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),
                 asset_excludes=LAMBDA_EXCLUDE,
+                volumes=UV_DOCKER_VOLUMES,
             ),
         )
 
@@ -349,8 +366,8 @@ class HlsViStack(Stack):
         self.job_requeuer_lambda = aws_lambda_python.PythonFunction(
             self,
             "JobRequeuerHandler",
-            entry=".",
-            index="lambdas/job_requeuer/handler.py",
+            entry="lambdas/",
+            index="job_requeuer/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
             memory_size=256,
@@ -362,6 +379,7 @@ class HlsViStack(Stack):
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),
                 asset_excludes=LAMBDA_EXCLUDE,
+                volumes=UV_DOCKER_VOLUMES,
             ),
         )
 

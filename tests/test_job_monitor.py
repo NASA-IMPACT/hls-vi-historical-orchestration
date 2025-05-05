@@ -1,13 +1,12 @@
 """Tests for `job_monitor` Lambda"""
 
 import pytest
-from mypy_boto3_batch.type_defs import JobDetailTypeDef
-from mypy_boto3_sqs import SQSClient
-
 from common import GranuleId, JobOutcome, ProcessingOutcome
-from common.aws_batch import JobDetails, JobChangeEvent
+from common.aws_batch import JobChangeEvent, JobDetails
 from common.granule_logger import GranuleLoggerService
 from job_monitor.handler import handler
+from mypy_boto3_batch.type_defs import JobDetailTypeDef
+from mypy_boto3_sqs import SQSClient
 
 
 @pytest.fixture
