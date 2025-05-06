@@ -131,7 +131,10 @@ def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> No
         for i, chunk in enumerate(reader):
             logger.info(f"Processing chunk={i}")
             parsed = InventoryRow.parse_table(cast(pa.StringArray, chunk["contents"]))
-            writer.write(parsed)
+            parsed_completed = parsed.filter(
+                pc.field("status") == pa.scalar("completed")
+            )
+            writer.write(parsed_completed)
 
 
 def handler(event: dict[str, str], context: Any) -> dict[str, str]:

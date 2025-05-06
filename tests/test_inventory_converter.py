@@ -70,9 +70,7 @@ def test_convert_inventory_to_parquet(tmp_path: Path, inventory: dict[str, str])
         df["granule_id"],
         [
             "HLS.S30.T01FBE.2022224T215909.v2.0",
-            "HLS.S30.T01GEL.2019059T213751.v2.0",
-            "HLS.S30.T35MNT.2024365T082341.v2.0",
         ],
     )
-    np.testing.assert_array_equal(df["status"], ["completed", "queued", "failed"])
-    np.testing.assert_array_equal(df["published"], [True, False, False])
+    np.testing.assert_array_equal(df["status"], ["completed"])
+    np.testing.assert_array_equal(df["published"], [True])
