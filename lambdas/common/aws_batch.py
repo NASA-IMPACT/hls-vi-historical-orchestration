@@ -95,11 +95,12 @@ class AwsBatchClient:
 
         job_count = 0
         for status in {"SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"}:
-            for job in paginator.paginate(
+            for page in paginator.paginate(
                 jobQueue=self.queue,
                 jobStatus=status,  # type: ignore[arg-type]
             ):
-                job_count += 1
+                jobs = page.get("jobSummaryList", [])
+                job_count += len(jobs)
                 if job_count >= threshold:
                     return False
 

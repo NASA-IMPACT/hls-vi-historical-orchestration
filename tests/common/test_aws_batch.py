@@ -1,8 +1,15 @@
+import datetime as dt
+from dataclasses import dataclass
+from typing import Any, Iterator
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
+
 import pytest
 from mypy_boto3_batch.type_defs import JobDetailTypeDef
 from pytest_lazy_fixtures import lf
 
-from common import GranuleProcessingEvent, JobDetails, JobOutcome
+from common import GranuleProcessingEvent, JobOutcome
+from common.aws_batch import AwsBatchClient, JobDetails
 
 
 class TestJobDetail:
@@ -59,3 +66,77 @@ class TestJobDetail:
         event_details = JobDetails(detail).get_granule_event()
 
         assert event_details == GranuleProcessingEvent(granule_id="foo", attempt=0)
+
+
+def make_job_summary_list(count: int, status: str) -> list[dict[str, Any]]:
+    """Return an example `list-jobs` response for some status"""
+    jobs = []
+    for _ in range(count):
+        job_id = str(uuid4())
+        job_info = {
+            "jobArn": f"arn:aws:batch:us-west-2:123456789012:job/{job_id}",
+            "jobId": job_id,
+            "jobName": "BatchJobNotification",
+            "createdAt": (dt.datetime.now() - dt.timedelta(hours=1)).timestamp(),
+            "status": status,
+            "container": {},
+        }
+
+        if status == "RUNNING":
+            job_info["startedAt"] = (
+                dt.datetime.now() - dt.timedelta(minutes=15)
+            ).timestamp()
+
+        jobs.append(job_info)
+
+    return [{"jobSummaryList": jobs}]
+
+
+@dataclass
+class MockListJobsPaginator:
+    """Mock paginating through AWS Batch ListJobs"""
+
+    count_by_status: dict[str, int]
+
+    def paginate(self, *, jobStatus: str, **kwds: Any) -> Iterator[dict[str, Any]]:
+        """Yield pages of ListJobs responses"""
+        count = self.count_by_status.get(jobStatus, 0)
+        yield from make_job_summary_list(count=count, status=jobStatus)
+
+
+class TestAwsBatchClient:
+    """Tests for AwsBatchClient"""
+
+    @pytest.fixture
+    def client(self) -> AwsBatchClient:
+        """A basic fake AwsBatchClient"""
+        return AwsBatchClient(queue="batch-queue", job_definition="job-definition")
+
+    def make_mock_list_jobs_paginator(
+        self, client: AwsBatchClient, count_by_status: dict[str, int]
+    ) -> Iterator[MagicMock]:
+        """Create a fake ListJobs paginator"""
+        with patch.object(
+            client.client,
+            "get_paginator",
+            return_value=MockListJobsPaginator(count_by_status),
+        ) as mocked_get_paginator:
+            yield mocked_get_paginator
+
+    def test_active_jobs_below_threshold(self, client: AwsBatchClient) -> None:
+        """Test checking if active jobs are below threshold"""
+        with patch.object(
+            client.client,
+            "get_paginator",
+            return_value=MockListJobsPaginator({"SUBMITTED": 10, "RUNNING": 5}),
+        ) as mocked_get_paginator:
+            assert client.active_jobs_below_threshold(200)
+        mocked_get_paginator.assert_called()
+
+        with patch.object(
+            client.client,
+            "get_paginator",
+            return_value=MockListJobsPaginator({"SUBMITTED": 10, "RUNNING": 5}),
+        ) as mocked_get_paginator:
+            assert not client.active_jobs_below_threshold(5)
+        mocked_get_paginator.assert_called()
