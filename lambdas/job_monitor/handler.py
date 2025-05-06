@@ -4,11 +4,13 @@ This Lambda monitors and potentially reroutes jobs from AWS Batch for a few scen
 
 * Failures that are retriable (e.g., SPOT interruptions)
     * Routing: Retriable failures go into the requeuer queue for requeueing
-    * Logging: Job details are logged to AWS S3
-* Failures that are not retriable (e.g., )
+    * Logging: Job details are logged to S3
+* Failures that are not retriable (e.g., a bug in our code)
     * Routing: These failures need manual intervention and go directly into the DLQ
-    * Logging: Job details are logged to AWS S3
-* [TODO] Successes are not currently logged
+    * Logging: Job details are logged to S3
+* Successes
+    * Routing: These jobs are complete! No further steps are taken.
+    * Logging: Job details are logged to S3
 
 """
 
@@ -55,7 +57,6 @@ def handler(event: JobChangeEvent, context: Any) -> None:
     granule_logger.put_event_details(details)
 
     if outcome == JobOutcome.FAILURE_RETRYABLE:
-        # FIXME: use a service here
         sqs.send_message(
             QueueUrl=retry_queue_url,
             MessageBody=granule_event.new_attempt().to_json(),
@@ -67,13 +68,12 @@ def handler(event: JobChangeEvent, context: Any) -> None:
             },
         )
     elif outcome == JobOutcome.FAILURE_NONRETRYABLE:
-        # FIXME: use a service here
         sqs.send_message(
             QueueUrl=failure_dlq_url,
             MessageBody=granule_event.new_attempt().to_json(),
             MessageAttributes={
                 "FailureType": {
-                    "StringValue": "RETRYABLE",
+                    "StringValue": "NONRETRYABLE",
                     "DataType": "String",
                 }
             },

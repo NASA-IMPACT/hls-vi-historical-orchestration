@@ -410,9 +410,6 @@ dev = [
     { name = "pytest-lazy-fixtures" },
     { name = "ruff" },
 ]
-lambda = [
-    { name = "boto3" },
-]
 
 [package.metadata]
 requires-dist = [{ name = "s3pathlib", specifier = ">=2.3.2" }]
@@ -438,7 +435,6 @@ dev = [
     { name = "pytest-lazy-fixtures", specifier = ">=1.1.2" },
     { name = "ruff", specifier = ">=0.11.4" },
 ]
-lambda = [{ name = "boto3", specifier = ">=1.37.28" }]
 
 [[package]]
 name = "idna"

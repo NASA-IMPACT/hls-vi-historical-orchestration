@@ -26,7 +26,7 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
     {
         "granule_submit_count": 5000,
     }
-    ``
+    ```
     """
     bucket = os.environ["PROCESSING_BUCKET_NAME"]
     prefix = os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"]

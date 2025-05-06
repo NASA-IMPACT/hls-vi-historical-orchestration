@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
-from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
@@ -145,7 +144,6 @@ class GranuleTrackerService:
 
     def _create_inventory_progress(self, s3path: str) -> InventoryProgress:
         """Create tracking info for some inventory file on S3"""
-        # FIXME: move this to top after moving tracker into Lambda submodule
         import pyarrow.dataset as ds
 
         dataset = ds.dataset(s3path)
@@ -213,7 +211,7 @@ class GranuleTrackerService:
         )
 
         updated_tracking = dataclasses.replace(
-            tracking, etag=resp["ETag"].replace('"', "")
+            tracking, etag=_sanitize_etag(resp["ETag"])
         )
 
         return updated_tracking
@@ -225,9 +223,7 @@ class GranuleTrackerService:
         import pyarrow.compute as pc
         import pyarrow.dataset as ds
 
-        updated_tracking = deepcopy(tracking)
-
-        if (next_inventory := updated_tracking.get_next_inventory()) is None:
+        if (next_inventory := tracking.get_next_inventory()) is None:
             return tracking, []
 
         end_row = min(

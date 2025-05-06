@@ -348,7 +348,7 @@ class HlsViStack(Stack):
                             "wildcard": f"*{self.processing_job.job_def.job_definition_name}*"
                         },
                     ],
-                    "status": ["FAILED"],
+                    "status": ["FAILED", "SUCCEEDED"],
                 },
             ),
             targets=[
