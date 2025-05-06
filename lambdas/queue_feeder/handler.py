@@ -60,5 +60,4 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
         batch.submit_job(processing_event, force_fail=bool(i % 2))
 
     tracker.update_tracking(updated_tracking)
-
     return updated_tracking.to_dict()

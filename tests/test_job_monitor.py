@@ -1,12 +1,13 @@
 """Tests for `job_monitor` Lambda"""
 
 import pytest
+from mypy_boto3_batch.type_defs import JobDetailTypeDef
+from mypy_boto3_sqs import SQSClient
+
 from common import GranuleId, JobOutcome, ProcessingOutcome
 from common.aws_batch import JobChangeEvent, JobDetails
 from common.granule_logger import GranuleLoggerService
 from job_monitor.handler import handler
-from mypy_boto3_batch.type_defs import JobDetailTypeDef
-from mypy_boto3_sqs import SQSClient
 
 
 @pytest.fixture
@@ -21,7 +22,7 @@ def test_handler_logs_nonretryable_failure(
     retry_queue: str,
     failure_dlq: str,
     event_job_detail_change_failed: JobChangeEvent,
-):
+) -> None:
     """Test the handler"""
     event = event_job_detail_change_failed.copy()
     event["detail"]["container"]["exitCode"] = 1
@@ -47,7 +48,7 @@ def test_handler_logs_retryable_failure(
     failure_dlq: str,
     event_job_detail_change_failed: JobChangeEvent,
     job_detail_failed_spot: JobDetailTypeDef,
-):
+) -> None:
     """Test the handler"""
     event = event_job_detail_change_failed.copy()
     event["detail"] = job_detail_failed_spot
@@ -68,7 +69,7 @@ def test_handler_logs_success(
     retry_queue: str,
     failure_dlq: str,
     event_job_detail_change_failed: JobChangeEvent,
-):
+) -> None:
     """Test the handler"""
     event = event_job_detail_change_failed.copy()
     event["detail"]["container"]["exitCode"] = 0

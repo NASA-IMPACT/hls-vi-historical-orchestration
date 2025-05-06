@@ -17,6 +17,7 @@ import os
 from typing import Any
 
 import boto3
+
 from common import (
     JobChangeEvent,
     JobDetails,

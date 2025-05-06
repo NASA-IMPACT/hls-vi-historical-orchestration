@@ -3,10 +3,11 @@
 from typing import cast
 
 import pytest
+from mypy_boto3_batch.type_defs import JobDetailTypeDef, KeyValuePairTypeDef
+
 from common import GranuleId, GranuleProcessingEvent, ProcessingOutcome
 from common.aws_batch import JobDetails
 from common.granule_logger import GranuleLoggerService
-from mypy_boto3_batch.type_defs import JobDetailTypeDef, KeyValuePairTypeDef
 
 
 class TestGranuleLoggerService:
@@ -17,13 +18,13 @@ class TestGranuleLoggerService:
         """Return an instance of the service with S3 bucket mocked with moto"""
         return GranuleLoggerService(bucket=bucket, logs_prefix="logs/")
 
-    def test_prefix_to_outcomes_unique(self):
+    def test_prefix_to_outcomes_unique(self) -> None:
         """Sanity check each ProcessingOutcome has a unique prefix"""
         assert len(GranuleLoggerService.outcome_to_prefix) == len(
             GranuleLoggerService.prefix_to_outcome
         )
 
-    def test_attempt_log_regex(self):
+    def test_attempt_log_regex(self) -> None:
         """Sanity check log name regex"""
         assert GranuleLoggerService.attempt_log_regex.match("attempt.0.json")
         assert GranuleLoggerService.attempt_log_regex.match("attempt.10.json")
@@ -36,7 +37,7 @@ class TestGranuleLoggerService:
         service: GranuleLoggerService,
         granule_id: GranuleId,
         outcome: ProcessingOutcome,
-    ):
+    ) -> None:
         """Test correctly construct and infer S3Path for an event/outcome"""
         event = GranuleProcessingEvent(
             granule_id=granule_id.to_str(),
@@ -53,7 +54,7 @@ class TestGranuleLoggerService:
         service: GranuleLoggerService,
         granule_id: GranuleId,
         job_detail_failed_spot: JobDetailTypeDef,
-    ):
+    ) -> None:
         """Test we can log a sequence of failures and then a final success"""
         # First failure
         batch_details = job_detail_failed_spot.copy()

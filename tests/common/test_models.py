@@ -1,4 +1,5 @@
 import pytest
+
 from common.models import (
     GranuleId,
     GranuleProcessingEvent,
@@ -7,7 +8,7 @@ from common.models import (
 )
 
 
-def test_job_outcome_covers_processing_outcome():
+def test_job_outcome_covers_processing_outcome() -> None:
     """Ensure our JobOutcome.processing_outcome covers all ProcessingOutcomes"""
     processing_outcomes = set(ProcessingOutcome)
     job_processing_outcomes = set(outcome.processing_outcome for outcome in JobOutcome)
@@ -24,7 +25,7 @@ class TestGranuleId:
             "HLS.L30.T18VUJ.2024321T161235.v2.0",
         ],
     )
-    def test_to_from_granule_id(self, granule_id: str):
+    def test_to_from_granule_id(self, granule_id: str) -> None:
         """Test to/from string"""
         granule_id_ = GranuleId.from_str(granule_id)
         test_granule_id = granule_id_.to_str()
@@ -34,7 +35,7 @@ class TestGranuleId:
 class TestGranuleProcessingEvent:
     """Test GranuleProcessingEvent"""
 
-    def to_from_envvar(self):
+    def to_from_envvar(self) -> None:
         event = GranuleProcessingEvent(
             granule_id="foo",
             attempt=42,

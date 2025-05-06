@@ -84,6 +84,17 @@ class InventoryTracking:
         """Convert into a dict"""
         return dataclasses.asdict(self)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> InventoryTracking:
+        """Load from a dict"""
+        return cls(
+            inventories={
+                key: InventoryProgress(**value)
+                for key, value in data["inventories"].items()
+            },
+            etag=data["etag"],
+        )
+
     @property
     def is_complete(self) -> bool:
         """Have all of the inventories been completed?"""

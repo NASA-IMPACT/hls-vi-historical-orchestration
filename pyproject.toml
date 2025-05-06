@@ -44,14 +44,8 @@ pythonpath = ["lambdas"]
 testpaths = [
     "tests"
 ]
-addopts = "--cov=lambdas"
+addopts = "--cov=lambdas --cov-report=term-missing"
 norecursedirs = ["cdk.out"]
-
-[tool.coverage.report]
-show_missing = true
-
-[tool.coverage.run]
-source = ["lambdas"]
 
 [tool.ruff]
 fix = true
@@ -60,8 +54,11 @@ line-length = 88
 [tool.ruff.lint]
 select = ["I"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["common", "job_monitor", "job_requeuer", "queue_feeder"]
+
 [tool.mypy]
-files = ["lambdas"]
+files = ["cdk", "lambdas", "tests"]
 plugins = ["pydantic.mypy"]
 pretty = true
 strict = true

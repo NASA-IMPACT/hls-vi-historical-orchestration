@@ -21,7 +21,7 @@ def inventory() -> dict[str, str]:
 class TestInventoryRow:
     """Test InventoryRow"""
 
-    def test_parse_line_completed(self, inventory: dict[str, str]):
+    def test_parse_line_completed(self, inventory: dict[str, str]) -> None:
         row = InventoryRow.parse_line(inventory["completed"])
         assert row.granule_id == "HLS.S30.T01FBE.2022224T215909.v2.0"
         assert row.start_datetime == dt.datetime(
@@ -30,14 +30,14 @@ class TestInventoryRow:
         assert row.status == "completed"
         assert row.published
 
-    def test_parse_line_queued(self, inventory: dict[str, str]):
+    def test_parse_line_queued(self, inventory: dict[str, str]) -> None:
         row = InventoryRow.parse_line(inventory["queued"])
         assert row.granule_id == "HLS.S30.T01GEL.2019059T213751.v2.0"
         assert row.start_datetime is None
         assert row.status == "queued"
         assert row.published is False
 
-    def test_parse_line_failed(self, inventory: dict[str, str]):
+    def test_parse_line_failed(self, inventory: dict[str, str]) -> None:
         row = InventoryRow.parse_line(inventory["failed"])
         assert row.granule_id == "HLS.S30.T35MNT.2024365T082341.v2.0"
         assert isinstance(row.start_datetime, dt.datetime)
@@ -45,7 +45,9 @@ class TestInventoryRow:
         assert row.published is False
 
 
-def test_convert_inventory_to_parquet(tmp_path: Path, inventory: dict[str, str]):
+def test_convert_inventory_to_parquet(
+    tmp_path: Path, inventory: dict[str, str]
+) -> None:
     """Test conversion of inventory into Parquet"""
     src = tmp_path / "inventory.txt"
     dst = tmp_path / "inventory.parquet"

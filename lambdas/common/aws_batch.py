@@ -83,7 +83,7 @@ class AwsBatchClient:
     job_definition: str
     client: BatchClient = field(default_factory=lambda: boto3.client("batch"))
 
-    def active_jobs_below_threshold(self, threshold: int) -> int:
+    def active_jobs_below_threshold(self, threshold: int) -> bool:
         """Get the number of jobs in an active state
 
         AWS Batch has a default service limit of 1,000,000 jobs per region
