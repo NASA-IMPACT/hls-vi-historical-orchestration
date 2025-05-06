@@ -7,7 +7,7 @@ from typing import Any
 from common import (
     AwsBatchClient,
     GranuleProcessingEvent,
-    InventoryTrackerService,
+    GranuleTrackerService,
     InventoryTrackingNotFoundError,
 )
 
@@ -36,7 +36,7 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
     granule_submit_count = event["granule_submit_count"]
 
     batch = AwsBatchClient(queue=job_queue, job_definition=job_definition_name)
-    tracker = InventoryTrackerService(
+    tracker = GranuleTrackerService(
         bucket=bucket,
         inventories_prefix=prefix,
     )

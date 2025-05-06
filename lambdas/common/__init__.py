@@ -1,7 +1,11 @@
 from .aws_batch import AwsBatchClient, JobChangeEvent, JobDetails
+from .granule_logger import (
+    GranuleEventJobLog,
+    GranuleLoggerService,
+)
 from .granule_tracker import (
+    GranuleTrackerService,
     InventoryProgress,
-    InventoryTrackerService,
     InventoryTracking,
     InventoryTrackingNotFoundError,
 )
@@ -15,7 +19,10 @@ __all__ = [
     "JobDetails",
     "JobOutcome",
     "InventoryProgress",
-    "InventoryTrackerService",
+    "GranuleEventJobLog",
+    "GranuleLoggerService",
+    "GranuleTrackerService",
+    "InventoryProgress",
     "InventoryTracking",
     "InventoryTrackingNotFoundError",
     "ProcessingOutcome",

@@ -56,9 +56,7 @@ class InventoryTracking:
     etag: str
 
     @classmethod
-    def new(
-        cls, inventories: list[InventoryProgress], etag: str
-    ) -> InventoryTracking:
+    def new(cls, inventories: list[InventoryProgress], etag: str) -> InventoryTracking:
         """Create new tracking data for inventories"""
         return cls(
             inventories={inventory.identifier: inventory for inventory in inventories},
@@ -112,7 +110,7 @@ class InventoryTrackingNotFoundError(FileNotFoundError):
 
 
 @dataclass
-class InventoryTrackerService:
+class GranuleTrackerService:
     """Tracks progress through HLS inventory"""
 
     bucket: str
@@ -228,9 +226,9 @@ class InventoryTrackerService:
 
         dataset = ds.dataset(next_inventory.inventory)
         table = dataset.scanner(columns=["granule_id", "status"]).take(next_rows)
-        completed_granule_ids = table.filter(
-            pc.field("status") == "completed"
-        )["granule_id"].to_pylist()
+        completed_granule_ids = table.filter(pc.field("status") == "completed")[
+            "granule_id"
+        ].to_pylist()
 
         incremented = tracking.increment_progress(
             next_inventory, end_row - next_inventory.submitted_count

@@ -12,10 +12,12 @@ from boto_session_manager import BotoSesManager
 from botocore.exceptions import ClientError
 from s3pathlib import S3Path
 
-from common import (
+from common.aws_batch import (
+    JobDetails,
+)
+from common.models import (
     GranuleId,
     GranuleProcessingEvent,
-    JobDetails,
     JobOutcome,
     ProcessingOutcome,
 )
@@ -156,7 +158,7 @@ class GranuleLoggerService:
             GranuleId.from_str(granule_id), outcome
         )
         paths = []
-        for path in prefix.iter_objects().filter(self._filter_attempt_log):
+        for path in prefix.iter_objects(bsm=self.bsm).filter(self._filter_attempt_log):
             paths.append(path)
         return paths
 
@@ -169,8 +171,8 @@ class GranuleLoggerService:
             success_path = self._path_for_event_outcome(
                 event, ProcessingOutcome.SUCCESS
             )
-            failure_path.copy_to(success_path)
-            failure_path.delete()
+            failure_path.copy_to(success_path, bsm=self.bsm)
+            failure_path.delete(bsm=self.bsm)
 
     def put_event_details(self, details: JobDetails) -> None:
         """Log event details"""

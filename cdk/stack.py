@@ -37,6 +37,7 @@ LAMBDA_EXCLUDE = [
     "scripts",
 ]
 
+# Mount root level `pyproject.toml` and `uv.lock` into container
 UV_ASSET_REQUIREMENTS = "/asset-requirements"
 UV_DOCKER_VOLUMES = [
     DockerVolume(
@@ -62,9 +63,7 @@ class UvHooks:
         self.groups = groups
 
     def after_bundling(self, input_dir: str, output_dir: str) -> list[str]:
-        return [
-            "rm requirements.txt"
-        ]
+        return [f"rm {input_dir}/requirements.txt"]
 
     def before_bundling(self, input_dir: str, output_dir: str) -> list[str]:
         if self.groups:

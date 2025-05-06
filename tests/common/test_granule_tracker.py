@@ -3,8 +3,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from common.granule_tracker import (
+    GranuleTrackerService,
     InventoryProgress,
-    InventoryTrackerService,
     InventoryTracking,
     InventoryTrackingNotFoundError,
 )
@@ -58,20 +58,20 @@ class TestInventoryTracking:
         assert tracking.is_complete
 
 
-class TestInventoryTrackerService:
-    """Tests for InventoryTrackerService"""
+class TestGranuleTrackerService:
+    """Tests for GranuleTrackerService"""
 
     @pytest.fixture
-    def service(self, bucket: str) -> InventoryTrackerService:
+    def service(self, bucket: str) -> GranuleTrackerService:
         """Create service with mocked S3 client and bucket pre-created"""
-        return InventoryTrackerService(
+        return GranuleTrackerService(
             bucket=bucket,
             inventories_prefix="inventories",
         )
 
     @pytest.fixture
     def local_inventory(
-        self, service: InventoryTrackerService, tmp_path: Path, s3: S3Client
+        self, service: GranuleTrackerService, tmp_path: Path, s3: S3Client
     ) -> str:
         """Create a fake granule inventory file"""
         inventory_contents = [
@@ -107,7 +107,7 @@ class TestInventoryTrackerService:
 
     @pytest.fixture
     def s3_inventory(
-        self, local_inventory: str, service: InventoryTrackerService, s3: S3Client
+        self, local_inventory: str, service: GranuleTrackerService, s3: S3Client
     ) -> str:
         """Create a fake granule inventory on S3"""
         key = "inventories/PROD_sentinel_cumulus_rds_granule_blah.sorted.parquet"
@@ -119,7 +119,7 @@ class TestInventoryTrackerService:
         return f"s3://{service.bucket}/{key}"
 
     def test_service_list_inventories(
-        self, service: InventoryTrackerService, s3_inventory: str
+        self, service: GranuleTrackerService, s3_inventory: str
     ):
         """Test listing inventory files"""
         inventories = service._list_inventories()
@@ -128,7 +128,7 @@ class TestInventoryTrackerService:
 
     def test_create_get_update_tracking(
         self,
-        service: InventoryTrackerService,
+        service: GranuleTrackerService,
         local_inventory: str,
         monkeypatch,
     ):
@@ -154,7 +154,7 @@ class TestInventoryTrackerService:
 
     def test_get_next_granule_ids(
         self,
-        service: InventoryTrackerService,
+        service: GranuleTrackerService,
         local_inventory: str,
         monkeypatch,
     ):
