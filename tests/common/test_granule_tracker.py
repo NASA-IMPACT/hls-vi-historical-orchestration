@@ -45,7 +45,7 @@ class TestInventoryTracking:
 
     def test_is_complete(self):
         """Test aggregate 'is_complete'"""
-        tracking = InventoryTracking(
+        tracking = InventoryTracking.new(
             inventories=[
                 InventoryProgress("sentinel", 0, 10),
                 InventoryProgress("landsat", 10, 10),
@@ -54,7 +54,7 @@ class TestInventoryTracking:
         )
         assert not tracking.is_complete
 
-        tracking.inventories[0].submitted_count = 10
+        tracking.inventories["sentinel"].submitted_count = 10
         assert tracking.is_complete
 
 
@@ -81,12 +81,17 @@ class TestInventoryTrackerService:
                 "completed",
                 True,
             ],
-            ["HLS.S30.T01GEL.2019059T213751.v2.0", "NaT", "queued", False],
+            [
+                "HLS.S30.T01GEL.2019059T213751.v2.0",
+                "2019-02-28T21:37:51.123Z",
+                "completed",
+                True,
+            ],
             [
                 "HLS.S30.T35MNT.2024365T082341.v2.0",
                 "2024-12-30T08:40:54.243Z",
-                "failed",
-                False,
+                "completed",
+                True,
             ],
         ]
 
@@ -135,13 +140,41 @@ class TestInventoryTrackerService:
 
         created_tracking = service.create_tracking()
         assert len(created_tracking.inventories) == 1
-        assert created_tracking.inventories[0].inventory == local_inventory
-        assert created_tracking.inventories[0].submitted_count == 0
+        progress = list(created_tracking.inventories.values())[0]
+        assert progress.inventory == local_inventory
+        assert progress.submitted_count == 0
         assert created_tracking.etag != ""
 
         got_tracking = service.get_tracking()
         assert got_tracking.etag == created_tracking.etag
 
-        got_tracking.inventories[0].submitted_count += 100
+        got_tracking.increment_progress(progress, 2)
         updated_inventory = service.update_tracking(got_tracking)
         assert updated_inventory.etag != got_tracking.etag
+
+    def test_get_next_granule_ids(
+        self,
+        service: InventoryTrackerService,
+        local_inventory: str,
+        monkeypatch,
+    ):
+        """Test fetching next granule IDs and incrementing tracker"""
+        monkeypatch.setattr(service, "_list_inventories", lambda: [local_inventory])
+
+        created_tracking = service.create_tracking()
+        updated_tracking, granule_ids = service.get_next_granule_ids(
+            created_tracking, 2
+        )
+        assert len(granule_ids) == 2
+        progress = list(updated_tracking.inventories.values())[0]
+        assert progress.submitted_count == 2
+        assert updated_tracking.is_complete is False
+
+        updated_tracking, granule_ids = service.get_next_granule_ids(
+            created_tracking, 2
+        )
+        assert len(granule_ids) == 1
+        assert updated_tracking.is_complete is True
+
+        _, granule_ids = service.get_next_granule_ids(updated_tracking, 1)
+        assert not granule_ids

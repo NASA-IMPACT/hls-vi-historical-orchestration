@@ -18,7 +18,7 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-def handler(event: dict[str, int], context: Any) -> None:
+def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
     """Queue feeder Lambda handler
 
     The "event" payload contains,
@@ -43,7 +43,7 @@ def handler(event: dict[str, int], context: Any) -> None:
 
     if not batch.active_jobs_below_threshold(max_active_jobs):
         logging.info("Too many active jobs in AWS Batch cluster, exiting early")
-        return
+        return {}
 
     try:
         tracking = tracker.get_tracking()
@@ -60,3 +60,5 @@ def handler(event: dict[str, int], context: Any) -> None:
         batch.submit_job(processing_event, force_fail=bool(i % 2))
 
     tracker.update_tracking(updated_tracking)
+
+    return updated_tracking.to_dict()

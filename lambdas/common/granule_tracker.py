@@ -5,7 +5,7 @@ import json
 import re
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -38,6 +38,11 @@ class InventoryProgress:
         return cls(**json.loads(json_str))
 
     @property
+    def identifier(self) -> str:
+        """Identifier for this inventory"""
+        return self.inventory.split("/")[-1]
+
+    @property
     def is_complete(self) -> bool:
         """Has the inventory been completely processed?"""
         return self.submitted_count == self.total_count
@@ -47,12 +52,24 @@ class InventoryProgress:
 class InventoryTracking:
     """Records progress through all granule inventory files"""
 
-    inventories: list[InventoryProgress]
+    inventories: dict[str, InventoryProgress]
     etag: str
+
+    @classmethod
+    def new(
+        cls, inventories: list[InventoryProgress], etag: str
+    ) -> InventoryTracking:
+        """Create new tracking data for inventories"""
+        return cls(
+            inventories={inventory.identifier: inventory for inventory in inventories},
+            etag=etag,
+        )
 
     def to_ndjson(self) -> str:
         """Write inventories to a newline delimited JSON"""
-        return "\n".join([inventory.to_json() for inventory in self.inventories])
+        return "\n".join(
+            [inventory.to_json() for inventory in self.inventories.values()]
+        )
 
     @classmethod
     def from_ndjson(cls, ndjson: str, etag: str) -> InventoryTracking:
@@ -60,23 +77,34 @@ class InventoryTracking:
         inventories = [
             InventoryProgress.from_json(line) for line in ndjson.split("\n") if line
         ]
-        return cls(
+        return cls.new(
             inventories=inventories,
             etag=etag,
         )
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert into a dict"""
+        return dataclasses.asdict(self)
+
     @property
     def is_complete(self) -> bool:
         """Have all of the inventories been completed?"""
-        return all(inventory.is_complete for inventory in self.inventories)
+        return all(inventory.is_complete for inventory in self.inventories.values())
 
     def get_next_inventory(self) -> InventoryProgress | None:
         incomplete_inventories = [
-            inventory for inventory in self.inventories if not inventory.is_complete
+            inventory
+            for inventory in self.inventories.values()
+            if not inventory.is_complete
         ]
         if incomplete_inventories:
             return incomplete_inventories[0]
         return None
+
+    def increment_progress(self, inventory: InventoryProgress, count: int) -> int:
+        """Increment the submitted count for an inventory, returning current count"""
+        self.inventories[inventory.identifier].submitted_count += count
+        return self.inventories[inventory.identifier].submitted_count
 
 
 class InventoryTrackingNotFoundError(FileNotFoundError):
@@ -124,41 +152,13 @@ class InventoryTrackerService:
     def _inventory_tracking_key(self) -> str:
         return f"{self.inventories_prefix.rstrip('/')}/{self.inventory_tracking_name}"
 
-    def get_next_granule_ids(
-        self, tracking: InventoryTracking, count: int
-    ) -> tuple[InventoryTracking, list[str]]:
-        """Return the next <count> granule IDs and updated tracking information"""
-        import pyarrow.compute as pc
-        import pyarrow.dataset as ds
-
-        updated_tracking = deepcopy(tracking)
-
-        if (next_inventory := updated_tracking.get_next_inventory()) is None:
-            return tracking, []
-
-        end_row = min(
-            next_inventory.submitted_count + count, next_inventory.total_count
-        )
-        next_rows = list(range(next_inventory.submitted_count, end_row))
-
-        dataset = ds.dataset(next_inventory.inventory)
-        table = dataset.scanner(columns=["granule_id", "status"]).take(next_rows)
-        completed_granule_ids = table.filter(pc.field("status") == "completed")[
-            "granule_id"
-        ].to_pylist()
-
-        next_inventory.submitted_count = end_row
-        return tracking, cast(list[str], completed_granule_ids)
-
     def create_tracking(self) -> InventoryTracking:
         """Create inventory progress tracking info"""
         inventories = self._list_inventories()
 
-        tracking = InventoryTracking(
-            inventories=[
-                self._create_inventory_progress(inventory) for inventory in inventories
-            ],
-            etag="",
+        tracking = InventoryTracking.new(
+            [self._create_inventory_progress(inventory) for inventory in inventories],
+            "",
         )
 
         resp = self.client.put_object(
@@ -208,6 +208,35 @@ class InventoryTrackerService:
         )
 
         return updated_tracking
+
+    def get_next_granule_ids(
+        self, tracking: InventoryTracking, count: int
+    ) -> tuple[InventoryTracking, list[str]]:
+        """Return the next <count> granule IDs and updated tracking information"""
+        import pyarrow.compute as pc
+        import pyarrow.dataset as ds
+
+        updated_tracking = deepcopy(tracking)
+
+        if (next_inventory := updated_tracking.get_next_inventory()) is None:
+            return tracking, []
+
+        end_row = min(
+            next_inventory.submitted_count + count, next_inventory.total_count
+        )
+        next_rows = list(range(next_inventory.submitted_count, end_row))
+
+        dataset = ds.dataset(next_inventory.inventory)
+        table = dataset.scanner(columns=["granule_id", "status"]).take(next_rows)
+        completed_granule_ids = table.filter(
+            pc.field("status") == "completed"
+        )["granule_id"].to_pylist()
+
+        incremented = tracking.increment_progress(
+            next_inventory, end_row - next_inventory.submitted_count
+        )
+        assert incremented == end_row
+        return tracking, cast(list[str], completed_granule_ids)
 
 
 def _sanitize_etag(etag: str) -> str:
