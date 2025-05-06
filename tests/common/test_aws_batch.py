@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from mypy_boto3_batch import BatchClient
 from mypy_boto3_batch.type_defs import JobDetailTypeDef
 from pytest_lazy_fixtures import lf
 
@@ -108,9 +109,11 @@ class TestAwsBatchClient:
     """Tests for AwsBatchClient"""
 
     @pytest.fixture
-    def client(self) -> AwsBatchClient:
+    def client(self, batch: BatchClient) -> AwsBatchClient:
         """A basic fake AwsBatchClient"""
-        return AwsBatchClient(queue="batch-queue", job_definition="job-definition")
+        return AwsBatchClient(
+            queue="batch-queue", job_definition="job-definition", client=batch
+        )
 
     def make_mock_list_jobs_paginator(
         self, client: AwsBatchClient, count_by_status: dict[str, int]

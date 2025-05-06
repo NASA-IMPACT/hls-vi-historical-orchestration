@@ -7,6 +7,7 @@ import boto3
 import pandas as pd
 import pytest
 from moto import mock_aws
+from mypy_boto3_batch import BatchClient
 from mypy_boto3_batch.type_defs import JobDetailTypeDef
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_sqs import SQSClient
@@ -122,6 +123,13 @@ def failure_dlq(
 
 # ==============================================================================
 # AWS Batch
+@pytest.fixture
+def batch(aws_credentials: None) -> BatchClient:
+    """AWS Batch client"""
+    with mock_aws():
+        yield boto3.client("batch", region_name="us-west-2")
+
+
 @pytest.fixture
 def batch_queue_name(monkeypatch: pytest.MonkeyPatch) -> str:
     """AWS Batch queue name envvar"""
