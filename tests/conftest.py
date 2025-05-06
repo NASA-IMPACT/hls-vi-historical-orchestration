@@ -124,7 +124,7 @@ def failure_dlq(
 # ==============================================================================
 # AWS Batch
 @pytest.fixture
-def batch(aws_credentials: None) -> BatchClient:
+def batch(aws_credentials: None) -> Iterator[BatchClient]:
     """AWS Batch client"""
     with mock_aws():
         yield boto3.client("batch", region_name="us-west-2")
