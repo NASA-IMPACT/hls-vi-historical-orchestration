@@ -1,8 +1,6 @@
 from aws_cdk import App, Tags
-
 from settings import StackSettings
 from stack import HlsViStack
-
 
 settings = StackSettings()
 
