@@ -63,7 +63,7 @@ class UvHooks:
         self.groups = groups
 
     def after_bundling(self, input_dir: str, output_dir: str) -> list[str]:
-        return [f"rm {input_dir}/requirements.txt"]
+        return []
 
     def before_bundling(self, input_dir: str, output_dir: str) -> list[str]:
         if self.groups:
