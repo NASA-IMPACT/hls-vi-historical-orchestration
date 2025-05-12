@@ -12,7 +12,11 @@ if TYPE_CHECKING:
 
 @unique
 class ProcessingOutcome(Enum):
-    """Potential outcomes for granule processing"""
+    """Potential outcomes for granule processing
+
+    Individual jobs may succeed or fail in various ways, but ultimately
+    the processing of a granule may only be a success or failure.
+    """
 
     SUCCESS = auto()
     FAILURE = auto()
@@ -20,20 +24,20 @@ class ProcessingOutcome(Enum):
 
 @unique
 class JobOutcome(Enum):
-    """Potential outcomes for an AWS Batch job"""
+    """Potential outcomes for a compute job (e.g., with AWS Batch)
 
-    SUCCESS = auto()
-    FAILURE_RETRYABLE = auto()
-    FAILURE_NONRETRYABLE = auto()
+    This enum describes a job attempt of processing a granule. Failures of a
+    job may be retryable due to infrastructure or ephemeral issues.
+    """
+
+    SUCCESS = auto(), ProcessingOutcome.SUCCESS
+    FAILURE_RETRYABLE = auto(), ProcessingOutcome.FAILURE
+    FAILURE_NONRETRYABLE = auto(), ProcessingOutcome.FAILURE
 
     @property
     def processing_outcome(self) -> ProcessingOutcome:
-        """Current status of the overall processing outcome"""
-        return {
-            self.SUCCESS: ProcessingOutcome.SUCCESS,
-            self.FAILURE_RETRYABLE: ProcessingOutcome.FAILURE,
-            self.FAILURE_NONRETRYABLE: ProcessingOutcome.FAILURE,
-        }[self]  # type: ignore[index]
+        """The ProcessingOutcome for this job outcome"""
+        return self.value[1]
 
 
 HLS_GRANULE_ID_STRFTIME = "%Y%jT%H%M%S"
