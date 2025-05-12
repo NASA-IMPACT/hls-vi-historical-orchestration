@@ -107,10 +107,10 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # Buckets
         # ----------------------------------------------------------------------
-        self.lpdaac_private_bucket = aws_s3.Bucket.from_bucket_name(
+        self.lpdaac_protected_bucket = aws_s3.Bucket.from_bucket_name(
             self,
-            "LpdaacPrivateBucket",
-            bucket_name=settings.LPDAAC_PRIVATE_BUCKET_NAME,
+            "LpdaacProtectedBucket",
+            bucket_name=settings.LPDAAC_PROTECTED_BUCKET_NAME,
         )
         self.lpdaac_public_bucket = aws_s3.Bucket.from_bucket_name(
             self,
@@ -166,7 +166,7 @@ class HlsViStack(Stack):
         )
         self.processing_bucket.grant_read_write(self.processing_job.role)
         self.output_bucket.grant_read_write(self.processing_job.role)
-        self.lpdaac_private_bucket.grant_read(self.processing_job.role)
+        self.lpdaac_protected_bucket.grant_read(self.processing_job.role)
         self.lpdaac_public_bucket.grant_read(self.processing_job.role)
 
         # ----------------------------------------------------------------------

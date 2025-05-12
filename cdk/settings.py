@@ -23,7 +23,7 @@ class StackSettings(BaseSettings):
     PROCESSING_BUCKET_JOB_PREFIX: str = "jobs"
 
     # LDPAAC private input bucket (*tif files)
-    LPDAAC_PRIVATE_BUCKET_NAME: str
+    LPDAAC_PROTECTED_BUCKET_NAME: str
     # LPDAAC metadata input bucket (STAC Items & thumbnails)
     LPDAAC_PUBLIC_BUCKET_NAME: str
 
