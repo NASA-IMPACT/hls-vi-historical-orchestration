@@ -78,7 +78,10 @@ class UvHooks:
             "pip install uv",
             "export UV_CACHE_DIR=/tmp",
             f"cd {UV_ASSET_REQUIREMENTS}",
-            f"uv export {groups_arg} --frozen --no-dev --no-default-groups --no-editable -o {input_dir}/requirements.txt",
+            (
+                f"uv export {groups_arg} --frozen --no-emit-project --no-dev "
+                f"--no-default-groups --no-editable -o {input_dir}/requirements.txt"
+            ),
             f"rm -rf {input_dir}/uv_venv",
         ]
 
