@@ -1,5 +1,11 @@
 # HLS Vegetation Indices (HLS-VI) Historical Orchestration
 
+This repository orchestrates the historical backfill for the HLS-VI data product for the HLS archive.
+See also:
+
+* https://github.com/NASA-IMPACT/hls-vi
+* https://github.com/NASA-IMPACT/hls-vi-historical
+
 ## Getting started
 
 This project uses `uv` to manage dependencies and virtual environments. To install this, please visit the
@@ -12,7 +18,7 @@ we support (`dev` and `prod`).
 
 You can use the `env.sample` as a starting point for populating settings, or use the
 `scripts/bootstrap-dotenv.sh` script to populate your `.env.${STAGE}` from our Github
-environment.
+environment. To use this script you must have the Github CLI (`gh`) and `jq` installed.
 
 For example,
 ```bash
