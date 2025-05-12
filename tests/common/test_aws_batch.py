@@ -38,7 +38,7 @@ class TestJobDetail:
         job_detail = JobDetails(detail)
         assert job_detail.exit_code == exit_code
 
-    def test_get_job_countcome(self, job_detail_failed_error: JobDetailTypeDef) -> None:
+    def test_get_job_outcome(self, job_detail_failed_error: JobDetailTypeDef) -> None:
         """Test we correctly parse the job outcome"""
         detail = job_detail_failed_error.copy()
         detail["container"]["exitCode"] = 1

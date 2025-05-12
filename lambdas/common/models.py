@@ -4,7 +4,7 @@ import datetime as dt
 import json
 from dataclasses import asdict, dataclass
 from enum import Enum, auto, unique
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mypy_boto3_batch.type_defs import KeyValuePairTypeDef
@@ -43,11 +43,11 @@ HLS_GRANULE_ID_STRFTIME = "%Y%jT%H%M%S"
 class GranuleId:
     """Granule identifier"""
 
-    product: Literal["HLS"]
-    platform: Literal["L30", "S30"]
+    product: str  # Should be "HLS"
+    platform: str  # Should be one of ["L30", "S30"]
     tile: str
     begin_datetime: dt.datetime
-    version: Literal["v2.0"]
+    version: str  # should be "v2.0"
 
     @classmethod
     def from_str(cls, granule_id: str) -> GranuleId:
@@ -56,13 +56,13 @@ class GranuleId:
             granule_id.split(".")
         )
         return cls(
-            product=product,  # type: ignore[arg-type]
-            platform=platform,  # type: ignore[arg-type]
+            product=product,
+            platform=platform,
             tile=tile,
             begin_datetime=dt.datetime.strptime(
                 begin_datetime, HLS_GRANULE_ID_STRFTIME
             ),
-            version=".".join([version_major, version_minor]),  # type: ignore[arg-type]
+            version=".".join([version_major, version_minor]),
         )
 
     def to_str(self) -> str:
@@ -113,7 +113,7 @@ class GranuleProcessingEvent:
             attempt=int(env["ATTEMPT"]),
         )
 
-    def to_environment(self) -> list[dict[str, str]]:
+    def to_environment(self) -> list[KeyValuePairTypeDef]:
         """Format as a container environment definition"""
         return [
             {"name": key, "value": value} for key, value in self.to_envvar().items()

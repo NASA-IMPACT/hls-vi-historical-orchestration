@@ -22,8 +22,8 @@ from hls_constructs import BatchInfra, BatchJob
 from settings import StackSettings
 
 LAMBDA_EXCLUDE = [
-    ".git",
-    ".github",
+    ".git*",
+    "**/__pycache__",
     "**/*.egg-info",
     ".mypy_cache",
     ".ruff_cache",
@@ -33,6 +33,7 @@ LAMBDA_EXCLUDE = [
     ".env*",
     "cdk",
     "cdk.out",
+    "docs",
     "tests",
     "scripts",
 ]

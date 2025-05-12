@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import boto3
 import pyarrow as pa
@@ -26,12 +26,12 @@ INVENTORY_ROW_REGEX = r"^(?P<granule_id>\S+)\s(?P<start_datetime>.*)\s(?P<status
 
 
 INVENTORY_SCHEMA = pa.schema(
-    [  # type: ignore[arg-type]
+    (
         pa.field("granule_id", pa.string()),
         pa.field("start_datetime", pa.date64(), nullable=True),
         pa.field("status", pa.string()),
         pa.field("published", pa.bool_()),
-    ]
+    )
 )
 
 
@@ -51,7 +51,7 @@ class InventoryRow:
 
     granule_id: str
     start_datetime: dt.datetime | None
-    status: Literal["completed", "failed", "queued"]
+    status: str  # should be one of ["completed", "failed", "queued"]
     published: bool
 
     @classmethod
@@ -69,7 +69,7 @@ class InventoryRow:
             return cls(
                 granule_id=granule_id,
                 start_datetime=start_datetime,
-                status=status,  # type: ignore[arg-type]
+                status=status,
                 published=published == "t",
             )
 

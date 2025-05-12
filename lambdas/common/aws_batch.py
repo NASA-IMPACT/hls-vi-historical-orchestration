@@ -9,9 +9,19 @@ from common.models import GranuleProcessingEvent, JobOutcome
 
 if TYPE_CHECKING:
     from mypy_boto3_batch.client import BatchClient
+    from mypy_boto3_batch.literals import JobStatusType
     from mypy_boto3_batch.type_defs import (
         JobDetailTypeDef,
     )
+
+
+ACTIVE_JOB_STATUSES: set[JobStatusType] = {
+    "SUBMITTED",
+    "PENDING",
+    "RUNNABLE",
+    "STARTING",
+    "RUNNING",
+}
 
 
 class JobChangeEvent(TypedDict):
@@ -93,10 +103,10 @@ class AwsBatchClient:
         paginator = self.client.get_paginator("list_jobs")
 
         job_count = 0
-        for status in {"SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"}:
+        for status in ACTIVE_JOB_STATUSES:
             for page in paginator.paginate(
                 jobQueue=self.queue,
-                jobStatus=status,  # type: ignore[arg-type]
+                jobStatus=status,
             ):
                 jobs = page.get("jobSummaryList", [])
                 job_count += len(jobs)
@@ -116,7 +126,7 @@ class AwsBatchClient:
             jobName=job_name,
             jobQueue=self.queue,
             containerOverrides={
-                "environment": event.to_environment(),  # type: ignore
+                "environment": event.to_environment(),
                 "command": command,
             },
         )
