@@ -175,7 +175,7 @@ class HlsViStack(Stack):
         self.inventory_converter_lambda = aws_lambda_python.PythonFunction(
             self,
             "InventoryConverterHandler",
-            entry="lambdas/",
+            entry="src/",
             index="inventory_converter/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
@@ -203,7 +203,7 @@ class HlsViStack(Stack):
         self.queue_feeder_lambda = aws_lambda_python.PythonFunction(
             self,
             "QueueFeederHandler",
-            entry="lambdas/",
+            entry="src/",
             index="queue_feeder/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
@@ -304,7 +304,7 @@ class HlsViStack(Stack):
         self.job_monitor_lambda = aws_lambda_python.PythonFunction(
             self,
             "JobMonitorHandler",
-            entry="lambdas/",
+            entry="src/",
             index="job_monitor/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
@@ -366,7 +366,7 @@ class HlsViStack(Stack):
         self.job_requeuer_lambda = aws_lambda_python.PythonFunction(
             self,
             "JobRequeuerHandler",
-            entry="lambdas/",
+            entry="src/",
             index="job_requeuer/handler.py",
             handler="handler",
             runtime=aws_lambda.Runtime.PYTHON_3_12,
