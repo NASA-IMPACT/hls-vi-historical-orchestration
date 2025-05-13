@@ -69,7 +69,7 @@ class GranuleId:
             version=".".join([version_major, version_minor]),
         )
 
-    def to_str(self) -> str:
+    def __str__(self) -> str:
         """Recombine parts into an ID string"""
         return ".".join(
             [

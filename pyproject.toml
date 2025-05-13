@@ -58,7 +58,7 @@ line-length = 88
 extend-select = ["I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["common", "job_monitor", "job_requeuer", "queue_feeder"]
+known-first-party = ["common", "inventory_converter", "job_monitor", "job_requeuer", "queue_feeder"]
 
 [tool.mypy]
 files = ["cdk", "src", "tests"]

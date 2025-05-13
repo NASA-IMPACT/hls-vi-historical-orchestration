@@ -38,7 +38,7 @@ class TestGranuleLoggerService:
     ) -> None:
         """Test correctly construct and infer S3Path for an event/outcome"""
         event = GranuleProcessingEvent(
-            granule_id=granule_id.to_str(),
+            granule_id=str(granule_id),
             attempt=1,
         )
 
@@ -56,7 +56,7 @@ class TestGranuleLoggerService:
         """Test we can log a sequence of failures and then a final success"""
         # First failure
         batch_details = job_detail_failed_spot.copy()
-        first_event = GranuleProcessingEvent(granule_id.to_str(), 0)
+        first_event = GranuleProcessingEvent(str(granule_id), 0)
         batch_details["container"]["environment"] = first_event.to_environment()
         batch_details["container"].pop("exitCode", None)  # spot failure
         details = JobDetails(batch_details)
@@ -77,7 +77,7 @@ class TestGranuleLoggerService:
         assert restored_details == details
 
         # Two failures should exist
-        list_events = service.list_events(granule_id.to_str())
+        list_events = service.list_events(granule_id)
         assert set(list_events[ProcessingOutcome.FAILURE]) == {
             first_event,
             second_event,
@@ -95,7 +95,7 @@ class TestGranuleLoggerService:
         assert restored_details == details
 
         # All logs have been moved to "success" since the job is done
-        list_events = service.list_events(granule_id.to_str())
+        list_events = service.list_events(granule_id)
         assert ProcessingOutcome.FAILURE not in list_events
         assert set(list_events[ProcessingOutcome.SUCCESS]) == {
             first_event,

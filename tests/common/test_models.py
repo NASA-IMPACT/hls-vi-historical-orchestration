@@ -28,7 +28,7 @@ class TestGranuleId:
     def test_to_from_granule_id(self, granule_id: str) -> None:
         """Test to/from string"""
         granule_id_ = GranuleId.from_str(granule_id)
-        test_granule_id = granule_id_.to_str()
+        test_granule_id = str(granule_id_)
         assert granule_id == test_granule_id
 
 

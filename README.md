@@ -18,7 +18,7 @@ we support (`dev` and `prod`).
 
 You can use the `env.sample` as a starting point for populating settings, or use the
 `scripts/bootstrap-dotenv.sh` script to populate your `.env.${STAGE}` from our Github
-environment. To use this script you must have the Github CLI (`gh`) and `jq` installed.
+environment. To use this script you must have the Github CLI (`gh`).
 
 For example,
 ```bash
@@ -26,37 +26,45 @@ $ STAGE=prod scripts/bootstrap-dotenv.sh
 Dumping envvars for STAGE=prod to .env.prod
 ```
 
+### Development
+
+Install dependencies for resolving references in your favorite IDE:
+
+```plain
+uv sync --all-groups
+```
+
 ### Testing
 
 Run unit tests,
-```
+```plain
 scripts/test
 ```
 
 ### Formatting and Linting
 
 Run formatting,
-```
+```plain
 scripts/format
 ```
 
 Run linting,
-```
+```plain
 scripts/lint
 ```
 
 ### Deployment
 
 To deploy with CDK,
-```
+```plain
 uv run cdk deploy
 ```
 
 You may consider pointing UV to a different `.env` file, e.g.,
-```
+```plain
 uv run --env-file .env.dev -- cdk deploy
 ```
 or using an environment variable,
-```
+```plain
 UV_ENV_FILE=.env.dev uv run cdk deploy
 ```

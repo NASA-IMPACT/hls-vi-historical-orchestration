@@ -119,7 +119,7 @@ class GranuleLoggerService:
             self.outcome_to_prefix[outcome],
             granule_id.platform,
             date,
-            granule_id.to_str(),
+            str(granule_id),
         )
 
     def _path_for_event_outcome(
@@ -211,7 +211,7 @@ class GranuleLoggerService:
         raise NoSuchEventAttemptExists(f"Cannot find logs for {event}")
 
     def list_events(
-        self, granule_id: str, outcome: ProcessingOutcome | None = None
+        self, granule_id: str | GranuleId, outcome: ProcessingOutcome | None = None
     ) -> dict[ProcessingOutcome, list[GranuleProcessingEvent]]:
         """List events by outcome"""
         if outcome:
@@ -221,7 +221,7 @@ class GranuleLoggerService:
 
         events = defaultdict(list)
         for outcome in outcomes:
-            for path in self._list_logs_for_outcome(granule_id, outcome):
+            for path in self._list_logs_for_outcome(str(granule_id), outcome):
                 event, outcome = self._path_to_event_outcome(path)
                 events[outcome].append(event)
 

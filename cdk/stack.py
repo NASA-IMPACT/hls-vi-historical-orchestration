@@ -73,8 +73,8 @@ class UvHooks:
             groups_arg = " "
 
         return [
-            "python -m venv uv_venv",
-            ". uv_venv/bin/activate",
+            f"python -m venv {input_dir}/uv_venv",
+            f". {input_dir}/uv_venv/bin/activate",
             "pip install uv",
             "export UV_CACHE_DIR=/tmp",
             f"cd {UV_ASSET_REQUIREMENTS}",

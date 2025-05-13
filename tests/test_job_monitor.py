@@ -35,7 +35,7 @@ def test_handler_logs_nonretryable_failure(
     messages = sqs.receive_message(QueueUrl=failure_dlq)["Messages"]
     assert len(messages) == 1
 
-    events = job_logger.list_events(granule_id.to_str())
+    events = job_logger.list_events(granule_id)
     assert len(events[ProcessingOutcome.FAILURE]) == 1
     assert ProcessingOutcome.SUCCESS not in events
 
@@ -57,7 +57,7 @@ def test_handler_logs_retryable_failure(
     messages = sqs.receive_message(QueueUrl=retry_queue)["Messages"]
     assert len(messages) == 1
 
-    events = job_logger.list_events(granule_id.to_str())
+    events = job_logger.list_events(granule_id)
     assert len(events[ProcessingOutcome.FAILURE]) == 1
     assert ProcessingOutcome.SUCCESS not in events
 
@@ -75,6 +75,6 @@ def test_handler_logs_success(
     event["detail"]["container"]["exitCode"] = 0
     handler(event, {})
 
-    events = job_logger.list_events(granule_id.to_str())
+    events = job_logger.list_events(granule_id)
     assert len(events[ProcessingOutcome.SUCCESS]) == 1
     assert ProcessingOutcome.FAILURE not in events

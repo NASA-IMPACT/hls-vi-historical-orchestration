@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+
 from inventory_converter.handler import InventoryRow, convert_inventory_to_parquet
 
 
