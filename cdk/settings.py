@@ -19,11 +19,11 @@ class StackSettings(BaseSettings):
     # Job processing bucket for state (inventories, failures, etc)
     PROCESSING_BUCKET_NAME: str
     PROCESSING_BUCKET_INVENTORY_PREFIX: str = "inventories"
-    PROCESSING_BUCKET_FAILURE_PREFIX: str = "failures"
+    PROCESSING_BUCKET_LOG_PREFIX: str = "logs"
     PROCESSING_BUCKET_JOB_PREFIX: str = "jobs"
 
     # LDPAAC private input bucket (*tif files)
-    LPDAAC_PRIVATE_BUCKET_NAME: str
+    LPDAAC_PROTECTED_BUCKET_NAME: str
     # LPDAAC metadata input bucket (STAC Items & thumbnails)
     LPDAAC_PUBLIC_BUCKET_NAME: str
 
@@ -53,10 +53,13 @@ class StackSettings(BaseSettings):
     # ----- Job feeder
     FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES: int = 60
     FEEDER_MAX_ACTIVE_JOBS: int = 10_000
+    FEEDER_GRANULE_SUBMIT_COUNT: int = 50  # 5_000
     FEEDER_JOBS_PER_ARRAY_TASK: int = 1_000
 
     # ----- Job retry system
-    # Send failed AWS Batch jobs to this queue
-    JOB_RETRY_FAILURE_QUEUE_NAME: str
+    # Send retryable failed AWS Batch jobs to this queue
+    JOB_RETRY_QUEUE_NAME: str
+    # Failed AWS Batch jobs go to a DLQ that can redrive to the retry queue
+    JOB_FAILURE_DLQ_NAME: str
     # Give up requeueing after N attempts
     JOB_RETRY_MAX_ATTEMPTS: int = 3
