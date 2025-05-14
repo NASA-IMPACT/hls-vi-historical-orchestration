@@ -68,6 +68,16 @@ def bucket(s3: S3Client, monkeypatch: pytest.MonkeyPatch) -> str:
     return "foo"
 
 
+@pytest.fixture
+def output_bucket(s3: S3Client, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Create our output bucket, returning bucket name and setting envvar"""
+    s3.create_bucket(
+        Bucket="outputs", CreateBucketConfiguration={"LocationConstraint": "us-west-2"}
+    )
+    monkeypatch.setenv("OUTPUT_BUCKET", "output")
+    return "output"
+
+
 # ==============================================================================
 # SQS
 @pytest.fixture
