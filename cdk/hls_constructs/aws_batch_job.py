@@ -4,6 +4,20 @@ from aws_cdk import Aws, Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
 
 
+def ecr_uri_to_repo_arn(uri: str) -> str:
+    """Convert an ECR container URI to the ARN for the repository
+
+    Examples
+    --------
+    >>> ecr_uri_to_repo_arn("012345678901.dkr.ecr.us-west-2.amazonaws.com/my-repo:latest")
+    arn:aws:ecr:us-west-2:012345678901:repository/my-repo
+    """
+    tagless = uri.split(":")[0]
+    dkr, repo = tagless.split("/")
+    account_id, _, _, region, _, _ = dkr.split(".")
+    return f"arn:aws:ecr:{region}:{account_id}:repository/{repo}"
+
+
 class BatchJob(Construct):
     """An AWS Batch job running a Docker container"""
 
@@ -34,6 +48,31 @@ class BatchJob(Construct):
             assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
             role_name=f"hls-vi-historical-processing-role-{stage}",
         )
+        # ECR permissions to pull from private repo
+        # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecr-required-iam-permissions
+        self.role.add_to_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=[
+                    "*"
+                ],
+                actions=[
+                    "ecr:GetAuthorizationToken",
+                ],
+            )
+        )
+        self.role.add_to_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=[
+                    ecr_uri_to_repo_arn(container_ecr_uri),
+                ],
+                actions=[
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                ],
+            )
+        )
 
         self.job_def = aws_batch.EcsJobDefinition(
             self,
@@ -42,6 +81,7 @@ class BatchJob(Construct):
                 self,
                 "BatchContainerDef",
                 image=aws_ecs.ContainerImage.from_registry(container_ecr_uri),
+                execution_role=self.role,
                 cpu=vcpu,
                 memory=Size.mebibytes(memory_mb),
                 logging=aws_ecs.LogDriver.aws_logs(
