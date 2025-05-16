@@ -42,26 +42,28 @@ class BatchJob(Construct):
             log_group_name=log_group_name,
         )
 
-        self.role = aws_iam.Role(
-            self,
-            "TaskRole",
-            assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
-            role_name=f"hls-vi-historical-processing-role-{stage}",
-        )
-        # ECR permissions to pull from private repo
+        # Execution role needs ECR permissions to pull from private repo
         # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecr-required-iam-permissions
-        self.role.add_to_policy(
+        execution_role = aws_iam.Role(
+            self,
+            "ExecutionRole",
+            assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            managed_policies=[
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AmazonECSTaskExecutionRolePolicy"
+                )
+            ],
+        )
+        execution_role.add_to_policy(
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
-                resources=[
-                    "*"
-                ],
+                resources=["*"],
                 actions=[
                     "ecr:GetAuthorizationToken",
                 ],
             )
         )
-        self.role.add_to_policy(
+        execution_role.add_to_policy(
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
                 resources=[
@@ -74,6 +76,13 @@ class BatchJob(Construct):
             )
         )
 
+        self.role = aws_iam.Role(
+            self,
+            "TaskRole",
+            assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            role_name=f"hls-vi-historical-processing-role-{stage}",
+        )
+
         self.job_def = aws_batch.EcsJobDefinition(
             self,
             "JobDef",
@@ -81,7 +90,8 @@ class BatchJob(Construct):
                 self,
                 "BatchContainerDef",
                 image=aws_ecs.ContainerImage.from_registry(container_ecr_uri),
-                execution_role=self.role,
+                execution_role=execution_role,
+                job_role=self.role,
                 cpu=vcpu,
                 memory=Size.mebibytes(memory_mb),
                 logging=aws_ecs.LogDriver.aws_logs(
