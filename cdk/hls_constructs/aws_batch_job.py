@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from aws_cdk import Aws, Size, aws_batch, aws_ecs, aws_iam, aws_logs
+from aws_cdk import Aws, Duration, Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
 
 
@@ -99,6 +99,7 @@ class BatchJob(Construct):
                     log_group=self.log_group,
                 ),
             ),
+            timeout=Duration.hours(1),
             retry_attempts=retry_attempts,
             retry_strategies=[
                 aws_batch.RetryStrategy.of(
@@ -112,6 +113,7 @@ class BatchJob(Construct):
                     aws_batch.Reason.custom(on_reason="*"),
                 ),
             ],
+            propagate_tags=True,
         )
 
         # It's useful to have the ARN of the job definition _without_ the revision
