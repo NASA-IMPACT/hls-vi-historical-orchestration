@@ -1,7 +1,21 @@
 from typing import Any, Literal
 
-from aws_cdk import Aws, Size, aws_batch, aws_ecs, aws_iam, aws_logs
+from aws_cdk import Aws, Duration, Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
+
+
+def ecr_uri_to_repo_arn(uri: str) -> str:
+    """Convert an ECR container URI to the ARN for the repository
+
+    Examples
+    --------
+    >>> ecr_uri_to_repo_arn("012345678901.dkr.ecr.us-west-2.amazonaws.com/my-repo:latest")
+    arn:aws:ecr:us-west-2:012345678901:repository/my-repo
+    """
+    tagless = uri.split(":")[0]
+    dkr, repo = tagless.split("/")
+    account_id, _, _, region, _, _ = dkr.split(".")
+    return f"arn:aws:ecr:{region}:{account_id}:repository/{repo}"
 
 
 class BatchJob(Construct):
@@ -28,6 +42,40 @@ class BatchJob(Construct):
             log_group_name=log_group_name,
         )
 
+        # Execution role needs ECR permissions to pull from private repo
+        # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecr-required-iam-permissions
+        execution_role = aws_iam.Role(
+            self,
+            "ExecutionRole",
+            assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            managed_policies=[
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AmazonECSTaskExecutionRolePolicy"
+                )
+            ],
+        )
+        execution_role.add_to_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=["*"],
+                actions=[
+                    "ecr:GetAuthorizationToken",
+                ],
+            )
+        )
+        execution_role.add_to_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=[
+                    ecr_uri_to_repo_arn(container_ecr_uri),
+                ],
+                actions=[
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                ],
+            )
+        )
+
         self.role = aws_iam.Role(
             self,
             "TaskRole",
@@ -42,6 +90,8 @@ class BatchJob(Construct):
                 self,
                 "BatchContainerDef",
                 image=aws_ecs.ContainerImage.from_registry(container_ecr_uri),
+                execution_role=execution_role,
+                job_role=self.role,
                 cpu=vcpu,
                 memory=Size.mebibytes(memory_mb),
                 logging=aws_ecs.LogDriver.aws_logs(
@@ -49,6 +99,7 @@ class BatchJob(Construct):
                     log_group=self.log_group,
                 ),
             ),
+            timeout=Duration.hours(1),
             retry_attempts=retry_attempts,
             retry_strategies=[
                 aws_batch.RetryStrategy.of(
@@ -62,6 +113,7 @@ class BatchJob(Construct):
                     aws_batch.Reason.custom(on_reason="*"),
                 ),
             ],
+            propagate_tags=True,
         )
 
         # It's useful to have the ARN of the job definition _without_ the revision

@@ -218,6 +218,7 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_JOB_PREFIX": settings.PROCESSING_BUCKET_JOB_PREFIX,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
+                "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
             },

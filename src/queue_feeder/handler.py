@@ -30,6 +30,7 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
     """
     bucket = os.environ["PROCESSING_BUCKET_NAME"]
     prefix = os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"]
+    output_bucket = os.environ["OUTPUT_BUCKET"]
     job_queue = os.environ["BATCH_QUEUE_NAME"]
     job_definition_name = os.environ["BATCH_JOB_DEFINITION_NAME"]
     max_active_jobs = int(os.environ["FEEDER_MAX_ACTIVE_JOBS"])
@@ -57,7 +58,9 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
     # FIXME: add a time check and abandon early if going to timeout
     for i, granule_id in enumerate(granule_ids):
         processing_event = GranuleProcessingEvent(granule_id=granule_id, attempt=0)
-        batch.submit_job(processing_event, force_fail=bool(i % 2))
+        batch.submit_job(
+            event=processing_event, output_bucket=output_bucket, force_fail=bool(i % 2)
+        )
 
     tracker.update_tracking(updated_tracking)
     return updated_tracking.to_dict()

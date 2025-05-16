@@ -56,6 +56,7 @@ def mocked_submit_job() -> Iterator[MagicMock]:
 
 def test_queue_feeder_handler(
     bucket: str,
+    output_bucket: str,
     local_inventory: Path,
     mocked_list_inventories: MagicMock,
     mocked_active_jobs_below_threshold: MagicMock,
@@ -79,6 +80,7 @@ def test_queue_feeder_handler(
 
 def test_queue_feeder_handler_too_many_jobs(
     bucket: str,
+    output_bucket: str,
     local_inventory: Path,
     mocked_list_inventories: MagicMock,
     mocked_submit_job: MagicMock,
@@ -105,6 +107,7 @@ def test_queue_feeder_handler_too_many_jobs(
 
 def test_queue_feeder_handler_granules_all_done(
     bucket: str,
+    output_bucket: str,
     local_inventory: Path,
     granule_tracker_service: GranuleTrackerService,
     mocked_active_jobs_below_threshold: MagicMock,
