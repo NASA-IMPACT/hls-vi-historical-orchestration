@@ -377,8 +377,9 @@ class HlsViStack(Stack):
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
-                "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
+                "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
+                "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
             },
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),
