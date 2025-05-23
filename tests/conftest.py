@@ -247,6 +247,6 @@ def mocked_batch_client_submit_job() -> Iterator[MagicMock]:
     with patch.object(
         AwsBatchClient,
         "submit_job",
-        return_value={"jobId": "foo-job-id"},
+        return_value="foo-job-id",
     ) as mock:
         yield mock

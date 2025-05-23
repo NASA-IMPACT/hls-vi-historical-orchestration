@@ -38,11 +38,11 @@ def job_requeuer(
         next_attempt = failed_event.new_attempt()
 
         logger.info(f"Submitting job for {next_attempt}")
-        resp = batch.submit_job(
+        job_id = batch.submit_job(
             event=next_attempt,
             output_bucket=output_bucket,
         )
-        jobs.append(resp["jobId"])
+        jobs.append(job_id)
     return jobs
 
 
@@ -68,4 +68,5 @@ def handler(event: SQSEvent, context: Context) -> list[str]:
         job_queue=job_queue,
         job_definition_name=job_definition_name,
         output_bucket=output_bucket,
+        event=event,
     )
