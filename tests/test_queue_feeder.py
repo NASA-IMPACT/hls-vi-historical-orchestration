@@ -11,7 +11,7 @@ from common import (
     GranuleTrackerService,
     InventoryTracking,
 )
-from queue_feeder.handler import handler
+from queue_feeder.handler import queue_feeder
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def mocked_submit_job() -> Iterator[MagicMock]:
         yield mock
 
 
-def test_queue_feeder_handler(
+def test_queue_feeder(
     bucket: str,
     output_bucket: str,
     local_inventory: Path,
@@ -66,9 +66,14 @@ def test_queue_feeder_handler(
     max_active_jobs: int,
 ) -> None:
     """Test queue feeder happy path"""
-    updated_tracking_data = handler(
-        {"granule_submit_count": 2},
-        {},
+    updated_tracking_data = queue_feeder(
+        processing_bucket=bucket,
+        inventory_prefix="inventories",
+        output_bucket=output_bucket,
+        job_queue=batch_queue_name,
+        job_definition_name=batch_job_definition,
+        max_active_jobs=max_active_jobs,
+        granule_submit_count=2,
     )
     updated_tracking = InventoryTracking.from_dict(updated_tracking_data)
     assert updated_tracking.inventories[local_inventory.name].submitted_count == 2
@@ -94,9 +99,14 @@ def test_queue_feeder_handler_too_many_jobs(
         "active_jobs_below_threshold",
         return_value=False,
     ) as mocked_active_jobs_below_threshold:
-        noop = handler(
-            {"granule_submit_count": 2},
-            {},
+        noop = queue_feeder(
+            processing_bucket=bucket,
+            inventory_prefix="inventories",
+            output_bucket=output_bucket,
+            job_queue=batch_queue_name,
+            job_definition_name=batch_job_definition,
+            max_active_jobs=max_active_jobs,
+            granule_submit_count=2,
         )
 
     assert noop == {}
@@ -130,9 +140,14 @@ def test_queue_feeder_handler_granules_all_done(
         tracking = granule_tracker_service.update_tracking(tracking)
         assert tracking.is_complete
 
-        tracking_data = handler(
-            {"granule_submit_count": 5},
-            {},
+        tracking_data = queue_feeder(
+            processing_bucket=bucket,
+            inventory_prefix="inventories",
+            output_bucket=output_bucket,
+            job_queue=batch_queue_name,
+            job_definition_name=batch_job_definition,
+            max_active_jobs=max_active_jobs,
+            granule_submit_count=2,
         )
 
     tracking_complete = InventoryTracking.from_dict(tracking_data)
