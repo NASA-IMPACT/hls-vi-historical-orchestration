@@ -23,7 +23,30 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-def handler(event: SQSEvent, context: Context) -> None:
+def job_requeuer(
+    job_queue: str,
+    job_definition_name: str,
+    output_bucket: str,
+    event: SQSEvent,
+) -> list[str]:
+    """Requeue granule processing events"""
+    batch = AwsBatchClient(queue=job_queue, job_definition=job_definition_name)
+
+    jobs = []
+    for record in event["Records"]:
+        failed_event = GranuleProcessingEvent(**json.loads(record["body"]))
+        next_attempt = failed_event.new_attempt()
+
+        logger.info(f"Submitting job for {next_attempt}")
+        resp = batch.submit_job(
+            event=next_attempt,
+            output_bucket=output_bucket,
+        )
+        jobs.append(resp["jobId"])
+    return jobs
+
+
+def handler(event: SQSEvent, context: Context) -> list[str]:
     """Resubmit failed processing events that can be retried
 
     This Lambda is fed by a SQS queue, so the event payload looks like,
@@ -41,15 +64,8 @@ def handler(event: SQSEvent, context: Context) -> None:
     job_definition_name = os.environ["BATCH_JOB_DEFINITION_NAME"]
     output_bucket = os.environ["OUTPUT_BUCKET"]
 
-    logger.info(f"Received event {event}")
-    for record in event["Records"]:
-        failed_event = GranuleProcessingEvent(**json.loads(record["body"]))
-        next_attempt = failed_event.new_attempt()
-
-        batch = AwsBatchClient(queue=job_queue, job_definition=job_definition_name)
-
-        logger.info(f"Submitting job for {next_attempt}")
-        batch.submit_job(
-            event=next_attempt,
-            output_bucket=output_bucket,
-        )
+    return job_requeuer(
+        job_queue=job_queue,
+        job_definition_name=job_definition_name,
+        output_bucket=output_bucket,
+    )
