@@ -34,16 +34,26 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-def handler(event: JobChangeEvent, context: Any) -> None:
-    """Event handler for AWS Batch "job state change" events"""
+def job_monitor(
+    logs_bucket: str,
+    logs_prefix: str,
+    retry_queue_url: str,
+    failure_dlq_url: str,
+    job_change_event: JobChangeEvent,
+) -> None:
+    """Handle job failure and success state change events
+
+    All job outcomes (successes, failures, and retryable failures) are logged.
+
+    Retryable failures (e.g., SPOT interruptions) are re-routed to a queue for the
+    "requeuer" to pickup.
+
+    Non-retryable failures (non-zero exit codes) are routed to a DLQ for triage
+    and redriving into the "requeuer"'s queue.
+    """
     sqs = boto3.client("sqs")
 
-    logs_bucket = os.environ["PROCESSING_BUCKET_NAME"]
-    logs_prefix = os.environ.get("PROCESSING_BUCKET_LOG_PREFIX", "logs")
-    retry_queue_url = os.environ["JOB_RETRY_QUEUE_URL"]
-    failure_dlq_url = os.environ["JOB_FAILURE_DLQ_URL"]
-
-    details = JobDetails(event["detail"])
+    details = JobDetails(job_change_event["detail"])
 
     granule_event = details.get_granule_event()
     outcome = details.get_job_outcome()
@@ -78,3 +88,14 @@ def handler(event: JobChangeEvent, context: Any) -> None:
                 }
             },
         )
+
+
+def handler(event: JobChangeEvent, context: Any) -> None:
+    """Event handler for AWS Batch "job state change" events"""
+    return job_monitor(
+        logs_bucket=os.environ["PROCESSING_BUCKET_NAME"],
+        logs_prefix=os.environ.get("PROCESSING_BUCKET_LOG_PREFIX", "logs"),
+        retry_queue_url=os.environ["JOB_RETRY_QUEUE_URL"],
+        failure_dlq_url=os.environ["JOB_FAILURE_DLQ_URL"],
+        job_change_event=event,
+    )
