@@ -117,7 +117,10 @@ class AwsBatchClient:
         return job_count < threshold
 
     def submit_job(
-        self, event: GranuleProcessingEvent, output_bucket: str, force_fail: bool
+        self,
+        event: GranuleProcessingEvent,
+        output_bucket: str,
+        force_fail: bool = False,
     ) -> str:
         """Submit granule processing event to queue, returning job ID"""
         container_overrides: ContainerOverridesTypeDef = {

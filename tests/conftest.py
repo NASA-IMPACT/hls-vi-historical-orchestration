@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 from typing import Iterator, cast
+from unittest.mock import MagicMock, patch
 
 import boto3
 import pandas as pd
@@ -12,7 +13,7 @@ from mypy_boto3_batch.type_defs import JobDetailTypeDef
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_sqs import SQSClient
 
-from common.aws_batch import JobChangeEvent
+from common.aws_batch import AwsBatchClient, JobChangeEvent
 from common.granule_tracker import GranuleTrackerService
 from common.models import GranuleId
 
@@ -238,3 +239,14 @@ def s3_inventory(local_inventory: Path, bucket: str, s3: S3Client) -> str:
         Key=key,
     )
     return f"s3://{bucket}/{key}"
+
+
+# ===== AwsBatchClient
+@pytest.fixture
+def mocked_batch_client_submit_job() -> Iterator[MagicMock]:
+    with patch.object(
+        AwsBatchClient,
+        "submit_job",
+        return_value="foo-job-id",
+    ) as mock:
+        yield mock

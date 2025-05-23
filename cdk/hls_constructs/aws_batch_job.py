@@ -4,14 +4,22 @@ from aws_cdk import Aws, Duration, Size, aws_batch, aws_ecs, aws_iam, aws_logs
 from constructs import Construct
 
 
-def ecr_uri_to_repo_arn(uri: str) -> str:
+def ecr_uri_to_repo_arn(uri: str) -> str | None:
     """Convert an ECR container URI to the ARN for the repository
+
+    This returns "None" if the container URI is not in ECR (i.e., it's public)
+    since that has no ARN.
 
     Examples
     --------
     >>> ecr_uri_to_repo_arn("012345678901.dkr.ecr.us-west-2.amazonaws.com/my-repo:latest")
     arn:aws:ecr:us-west-2:012345678901:repository/my-repo
+    >>> ecr_uri_to_repo_arn("public.ecr.aws/amazonlinux/amazonlinux:latest")
+    None
     """
+    if "dkr" not in uri:
+        return None
+
     tagless = uri.split(":")[0]
     dkr, repo = tagless.split("/")
     account_id, _, _, region, _, _ = dkr.split(".")
@@ -63,18 +71,19 @@ class BatchJob(Construct):
                 ],
             )
         )
-        execution_role.add_to_policy(
-            aws_iam.PolicyStatement(
-                effect=aws_iam.Effect.ALLOW,
-                resources=[
-                    ecr_uri_to_repo_arn(container_ecr_uri),
-                ],
-                actions=[
-                    "ecr:BatchGetImage",
-                    "ecr:GetDownloadUrlForLayer",
-                ],
+        if ecr_repo_arn := ecr_uri_to_repo_arn(container_ecr_uri):
+            execution_role.add_to_policy(
+                aws_iam.PolicyStatement(
+                    effect=aws_iam.Effect.ALLOW,
+                    resources=[
+                        ecr_repo_arn,
+                    ],
+                    actions=[
+                        "ecr:BatchGetImage",
+                        "ecr:GetDownloadUrlForLayer",
+                    ],
+                )
             )
-        )
 
         self.role = aws_iam.Role(
             self,

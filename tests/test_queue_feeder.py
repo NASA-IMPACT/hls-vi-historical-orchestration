@@ -44,23 +44,13 @@ def mocked_active_jobs_below_threshold(
         yield mock
 
 
-@pytest.fixture
-def mocked_submit_job() -> Iterator[MagicMock]:
-    with patch.object(
-        AwsBatchClient,
-        "submit_job",
-        return_value={"jobId": "foo-job-id"},
-    ) as mock:
-        yield mock
-
-
 def test_queue_feeder(
     bucket: str,
     output_bucket: str,
     local_inventory: Path,
     mocked_list_inventories: MagicMock,
     mocked_active_jobs_below_threshold: MagicMock,
-    mocked_submit_job: MagicMock,
+    mocked_batch_client_submit_job: MagicMock,
     batch_queue_name: str,
     batch_job_definition: str,
     max_active_jobs: int,
@@ -80,7 +70,7 @@ def test_queue_feeder(
 
     mocked_list_inventories.assert_called_once()
     mocked_active_jobs_below_threshold.assert_called_once()
-    assert mocked_submit_job.call_count == 2
+    assert mocked_batch_client_submit_job.call_count == 2
 
 
 def test_queue_feeder_handler_too_many_jobs(
@@ -88,7 +78,7 @@ def test_queue_feeder_handler_too_many_jobs(
     output_bucket: str,
     local_inventory: Path,
     mocked_list_inventories: MagicMock,
-    mocked_submit_job: MagicMock,
+    mocked_batch_client_submit_job: MagicMock,
     batch_queue_name: str,
     batch_job_definition: str,
     max_active_jobs: int,
@@ -112,7 +102,7 @@ def test_queue_feeder_handler_too_many_jobs(
     assert noop == {}
     mocked_active_jobs_below_threshold.assert_called()
     mocked_list_inventories.assert_not_called()
-    mocked_submit_job.assert_not_called()
+    mocked_batch_client_submit_job.assert_not_called()
 
 
 def test_queue_feeder_handler_granules_all_done(
@@ -121,7 +111,7 @@ def test_queue_feeder_handler_granules_all_done(
     local_inventory: Path,
     granule_tracker_service: GranuleTrackerService,
     mocked_active_jobs_below_threshold: MagicMock,
-    mocked_submit_job: MagicMock,
+    mocked_batch_client_submit_job: MagicMock,
     batch_queue_name: str,
     batch_job_definition: str,
     max_active_jobs: int,
@@ -155,4 +145,4 @@ def test_queue_feeder_handler_granules_all_done(
 
     mocked_list_inventories.assert_called_once()
     mocked_active_jobs_below_threshold.assert_called_once()
-    mocked_submit_job.assert_not_called()
+    mocked_batch_client_submit_job.assert_not_called()
