@@ -1,6 +1,14 @@
 from typing import Any, Literal
 
-from aws_cdk import Aws, Duration, Size, aws_batch, aws_ecs, aws_iam, aws_logs
+from aws_cdk import (
+    Aws,
+    Duration,
+    Size,
+    aws_batch,
+    aws_ecs,
+    aws_iam,
+    aws_logs,
+)
 from constructs import Construct
 
 
@@ -39,6 +47,7 @@ class BatchJob(Construct):
         memory_mb: int,
         retry_attempts: int,
         log_group_name: str,
+        secrets: None | dict[str, aws_batch.Secret] = None,
         stage: Literal["dev", "prod"],
         **kwargs: Any,
     ) -> None:
@@ -107,6 +116,7 @@ class BatchJob(Construct):
                     stream_prefix="job",
                     log_group=self.log_group,
                 ),
+                secrets=secrets,
             ),
             timeout=Duration.hours(1),
             retry_attempts=retry_attempts,

@@ -15,6 +15,10 @@ class StackSettings(BaseSettings):
 
     VPC_ID: str
 
+    # ----- Scheduling
+    SCHEDULE_QUEUE_FEEDER: bool = True
+    SCHEDULE_LPDAAC_CREDS_ROTATION: bool = True
+
     # ----- Buckets
     # Job processing bucket for state (inventories, failures, etc)
     PROCESSING_BUCKET_NAME: str

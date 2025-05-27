@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from mypy_boto3_batch.client import BatchClient
     from mypy_boto3_batch.literals import JobStatusType
     from mypy_boto3_batch.type_defs import (
-        ContainerOverridesTypeDef,
         JobDetailTypeDef,
     )
 
@@ -120,28 +119,17 @@ class AwsBatchClient:
         self,
         event: GranuleProcessingEvent,
         output_bucket: str,
-        force_fail: bool = False,
     ) -> str:
         """Submit granule processing event to queue, returning job ID"""
-        container_overrides: ContainerOverridesTypeDef = {
-            "environment": [
-                {"name": "OUTPUT_BUCKET", "value": output_bucket},
-                *event.to_environment(),
-            ]
-        }
-
-        if force_fail:
-            container_overrides["command"] = [
-                "/bin/bash",
-                "-c",
-                f"exit {int(force_fail)}",
-            ]
-
-        job_name = f"{event.granule_id.replace('.', '-')}_{event.attempt}"
         resp = self.client.submit_job(
             jobDefinition=self.job_definition,
-            jobName=job_name,
+            jobName=f"{event.granule_id.replace('.', '-')}_{event.attempt}",
             jobQueue=self.queue,
-            containerOverrides=container_overrides,
+            containerOverrides={
+                "environment": [
+                    {"name": "OUTPUT_BUCKET", "value": output_bucket},
+                    *event.to_environment(),
+                ]
+            },
         )
         return resp["jobId"]

@@ -8,12 +8,14 @@ from aws_cdk import (
     RemovalPolicy,
     Size,
     Stack,
+    aws_batch,
     aws_ec2,
     aws_events,
     aws_events_targets,
     aws_iam,
     aws_lambda,
     aws_s3,
+    aws_secretsmanager,
     aws_sqs,
 )
 from aws_cdk import aws_lambda_python_alpha as aws_lambda_python
@@ -145,6 +147,58 @@ class HlsViStack(Stack):
         )
 
         # ----------------------------------------------------------------------
+        # Earthdata Login (EDL) S3 credential rotator
+        # ----------------------------------------------------------------------
+        # NB - this secret must be created by developer team
+        self.edl_user_pass_credentials = aws_secretsmanager.Secret.from_secret_name_v2(
+            self,
+            id="EdlUserPassCredentials",
+            secret_name=f"hls-vi-historical-orchestration/{settings.STAGE}/edl-user-credentials",
+        )
+
+        self.edl_s3_credentials = aws_secretsmanager.Secret(
+            self,
+            id="EdlS3Credentials",
+            secret_name=f"hls-vi-historical-orchestration/{settings.STAGE}/edl-s3-credentials",
+            description="Temporary AWS credentials for accessing LPDAAC S3 buckets.",
+        )
+
+        # This Lambda sets the following keys in the `edl_s3_credentials` Secret,
+        #   * ACCESS_KEY_ID
+        #   * SECRET_ACCESS_KEY
+        #   * SESSION_TOKEN
+        self.edl_credential_rotator = aws_lambda_python.PythonFunction(
+            self,
+            "EdlCredentialRotator",
+            entry="src/edl_credential_rotator",
+            index="handler.py",
+            handler="handler",
+            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            memory_size=256,
+            timeout=Duration.minutes(1),
+            environment={
+                "USER_PASS_SECRET_ID": self.edl_user_pass_credentials.secret_arn,
+                "S3_CREDENTIALS_SECRET_ID": self.edl_s3_credentials.secret_arn,
+            },
+        )
+        self.edl_user_pass_credentials.grant_read(self.edl_credential_rotator)
+        self.edl_s3_credentials.grant_write(self.edl_credential_rotator)
+
+        self.edl_credential_rotator_schedule = aws_events.Rule(
+            self,
+            "EdlCredentialRotatorSchedule",
+            schedule=aws_events.Schedule.rate(
+                Duration.minutes(30),
+            ),
+        )
+        if settings.SCHEDULE_LPDAAC_CREDS_ROTATION:
+            self.edl_credential_rotator_schedule.add_target(
+                aws_events_targets.LambdaFunction(
+                    handler=self.edl_credential_rotator,
+                )
+            )
+
+        # ----------------------------------------------------------------------
         # AWS Batch infrastructure
         # ----------------------------------------------------------------------
         self.batch_infra = BatchInfra(
@@ -165,12 +219,24 @@ class HlsViStack(Stack):
             memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
             retry_attempts=settings.PROCESSING_JOB_RETRY_ATTEMPTS,
             log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
+            secrets={
+                "LPDAAC_SECRET_ACCESS_KEY": aws_batch.Secret.from_secrets_manager(
+                    self.edl_s3_credentials, "SECRET_ACCESS_KEY"
+                ),
+                "LPDAAC_ACCESS_KEY_ID": aws_batch.Secret.from_secrets_manager(
+                    self.edl_s3_credentials, "ACCESS_KEY_ID"
+                ),
+                "LPDAAC_SESSION_TOKEN": aws_batch.Secret.from_secrets_manager(
+                    self.edl_s3_credentials, "SESSION_TOKEN"
+                ),
+            },
             stage=settings.STAGE,
         )
         self.processing_bucket.grant_read_write(self.processing_job.role)
         self.output_bucket.grant_read_write(self.processing_job.role)
         self.lpdaac_protected_bucket.grant_read(self.processing_job.role)
         self.lpdaac_public_bucket.grant_read(self.processing_job.role)
+        self.edl_s3_credentials.grant_read(self.processing_job.role)
 
         # ----------------------------------------------------------------------
         # One-off inventory conversion Lambda
@@ -258,23 +324,25 @@ class HlsViStack(Stack):
         )
 
         # Schedule queue feeder
-        # FIXME: when ready, schedule the queue feeding
-        # self.queue_feeder_schedule = aws_events.Rule(
-        #     self,
-        #     "QueueFeederSchedule",
-        #     schedule=aws_events.Schedule.rate(
-        #         Duration.minutes(settings.FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES),
-        #     ),
-        #     targets=[
-        #         aws_events_targets.LambdaFunction(
-        #             event=aws_events.RuleTargetInput.from_object({
-        #                 "granule_submit_count": settings.FEEDER_GRANULE_SUBMIT_COUNT,
-        #             }),
-        #             handler=self.queue_feeder_lambda,
-        #             retry_attempts=3,
-        #         )
-        #     ],
-        # )
+        self.queue_feeder_schedule = aws_events.Rule(
+            self,
+            "QueueFeederSchedule",
+            schedule=aws_events.Schedule.rate(
+                Duration.minutes(settings.FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES),
+            ),
+        )
+        if settings.SCHEDULE_QUEUE_FEEDER:
+            self.queue_feeder_schedule.add_target(
+                aws_events_targets.LambdaFunction(
+                    event=aws_events.RuleTargetInput.from_object(
+                        {
+                            "granule_submit_count": settings.FEEDER_GRANULE_SUBMIT_COUNT,
+                        }
+                    ),
+                    handler=self.queue_feeder_lambda,
+                    retry_attempts=3,
+                )
+            )
 
         # ----------------------------------------------------------------------
         # Job monitor & retry system

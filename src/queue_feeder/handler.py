@@ -50,7 +50,8 @@ def queue_feeder(
     for i, granule_id in enumerate(granule_ids):
         processing_event = GranuleProcessingEvent(granule_id=granule_id, attempt=0)
         batch.submit_job(
-            event=processing_event, output_bucket=output_bucket, force_fail=bool(i % 2)
+            event=processing_event,
+            output_bucket=output_bucket,
         )
 
     tracker.update_tracking(updated_tracking)
