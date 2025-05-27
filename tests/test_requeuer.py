@@ -19,10 +19,10 @@ def test_requeuer_many(
         "HLS.S30.T42WOW.2023321T214901.v2.0": 2,
     }
     job_ids = job_requeuer(
-        "queue",
-        "job-def",
-        bucket,
-        SQSEvent(
+        job_queue="queue",
+        job_definition_name="job-def",
+        output_bucket=bucket,
+        event=SQSEvent(
             Records=[
                 {"body": json.dumps({"granule_id": granule_id, "attempt": attempt})}
                 for granule_id, attempt in granule_attempts.items()
