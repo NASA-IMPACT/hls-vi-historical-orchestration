@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import boto3
 import requests
@@ -24,17 +25,19 @@ LPDAAC_S3_CREDENTIALS_URL = "https://data.lpdaac.earthdatacloud.nasa.gov/s3crede
 class SessionWithHeaderRedirection(requests.Session):
     AUTH_HOST = "urs.earthdata.nasa.gov"
 
-    def __init__(self, username, password):
+    def __init__(self, username: str, password: str) -> None:
         super().__init__()
         self.auth = (username, password)
 
-    def rebuild_auth(self, prepared_request, response):
+    def rebuild_auth(
+        self, prepared_request: requests.PreparedRequest, response: requests.Response
+    ) -> None:
         headers = prepared_request.headers
         url = prepared_request.url
 
         if "Authorization" in headers:
-            original_parsed = requests.utils.urlparse(response.request.url)
-            redirect_parsed = requests.utils.urlparse(url)
+            original_parsed = urlparse(response.request.url)
+            redirect_parsed = urlparse(url)
 
             if (
                 (original_parsed.hostname != redirect_parsed.hostname)
@@ -46,7 +49,9 @@ class SessionWithHeaderRedirection(requests.Session):
         return
 
 
-def edl_credential_rotator(user_pass_secret_id: str, s3_credentials_secret_id: str):
+def edl_credential_rotator(
+    user_pass_secret_id: str, s3_credentials_secret_id: str
+) -> None:
     """Fetch user/pass credentials, call EDL to get S3 credentials, and persist"""
     secrets = boto3.client("secretsmanager")
 
