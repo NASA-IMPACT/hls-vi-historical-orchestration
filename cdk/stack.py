@@ -146,6 +146,16 @@ class HlsViStack(Stack):
             ],
         )
 
+        self.debug_bucket: aws_s3.IBucket | None
+        if settings.DEBUG_BUCKET_NAME:
+            self.debug_bucket = aws_s3.Bucket.from_bucket_name(
+                self,
+                "DebugBucket",
+                bucket_name=settings.DEBUG_BUCKET_NAME,
+            )
+        else:
+            self.debug_bucket = None
+
         # ----------------------------------------------------------------------
         # Earthdata Login (EDL) S3 credential rotator
         # ----------------------------------------------------------------------
@@ -237,6 +247,8 @@ class HlsViStack(Stack):
         self.lpdaac_protected_bucket.grant_read(self.processing_job.role)
         self.lpdaac_public_bucket.grant_read(self.processing_job.role)
         self.edl_s3_credentials.grant_read(self.processing_job.role)
+        if self.debug_bucket is not None:
+            self.debug_bucket.grant_read(self.processing_job.role)
 
         # ----------------------------------------------------------------------
         # One-off inventory conversion Lambda
@@ -284,7 +296,7 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_JOB_PREFIX": settings.PROCESSING_BUCKET_JOB_PREFIX,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
-                "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
+                "OUTPUT_BUCKET": settings.job_output_bucket,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
             },
@@ -445,7 +457,7 @@ class HlsViStack(Stack):
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
-                "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
+                "OUTPUT_BUCKET": settings.job_output_bucket,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
             },

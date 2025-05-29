@@ -34,6 +34,9 @@ class StackSettings(BaseSettings):
     # Output bucket for HLS-VI output files
     OUTPUT_BUCKET_NAME: str
 
+    # Debug bucket (optional, but useful for avoiding triggering LPDAAC ingest)
+    DEBUG_BUCKET_NAME: str | None = None
+
     # ----- HLS-VI processing
     PROCESSING_CONTAINER_ECR_URI: str
     # Job vCPU and memory limits
@@ -67,3 +70,10 @@ class StackSettings(BaseSettings):
     JOB_FAILURE_DLQ_NAME: str
     # Give up requeueing after N attempts
     JOB_RETRY_MAX_ATTEMPTS: int = 3
+
+    @property
+    def job_output_bucket(self) -> str:
+        """If debug bucket is defined, override where job outputs go"""
+        if self.DEBUG_BUCKET_NAME:
+            return self.DEBUG_BUCKET_NAME
+        return self.OUTPUT_BUCKET_NAME
