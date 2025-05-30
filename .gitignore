@@ -1,6 +1,6 @@
 # This project uses uv, but requirements.txt may be generated
 # as part of build/deploy process. We don't want to commit it
-requirements.txt
+src/requirements.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
