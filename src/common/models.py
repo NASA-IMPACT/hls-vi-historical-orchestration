@@ -88,20 +88,27 @@ class GranuleProcessingEvent:
 
     granule_id: str
     attempt: int = 0
+    # Events _may_ contain a reference to a debug bucket if the job was
+    # submitted in debug mode.
+    debug_bucket: str | None = None
 
     def new_attempt(self) -> GranuleProcessingEvent:
         """Return a new GranuleProcessingEvent for another attempt"""
         return GranuleProcessingEvent(
             granule_id=self.granule_id,
             attempt=self.attempt + 1,
+            debug_bucket=self.debug_bucket,
         )
 
     def to_envvar(self) -> dict[str, str]:
         """Convert this event to environment variable"""
-        return {
+        envvars = {
             "GRANULE_ID": self.granule_id,
             "ATTEMPT": str(self.attempt),
         }
+        if self.debug_bucket:
+            envvars["DEBUG_BUCKET"] = self.debug_bucket
+        return envvars
 
     @classmethod
     def from_envvar(cls, env: dict[str, str]) -> GranuleProcessingEvent:
@@ -115,6 +122,7 @@ class GranuleProcessingEvent:
         return cls(
             granule_id=env["GRANULE_ID"],
             attempt=int(env["ATTEMPT"]),
+            debug_bucket=env.get("DEBUG_BUCKET"),
         )
 
     def to_environment(self) -> list[KeyValuePairTypeDef]:
@@ -130,6 +138,7 @@ class GranuleProcessingEvent:
         return cls(
             granule_id=data["granule_id"],
             attempt=data["attempt"],
+            debug_bucket=data.get("debug_bucket"),
         )
 
     def to_json(self) -> str:

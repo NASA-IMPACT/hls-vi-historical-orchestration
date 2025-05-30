@@ -26,6 +26,7 @@ def queue_feeder(
     job_definition_name: str,
     max_active_jobs: int,
     granule_submit_count: int,
+    debug: bool = False,
 ) -> dict[str, Any]:
     """Submit granule processing jobs to AWS Batch queue"""
     batch = AwsBatchClient(queue=job_queue, job_definition=job_definition_name)
@@ -54,7 +55,10 @@ def queue_feeder(
             output_bucket=output_bucket,
         )
 
-    tracker.update_tracking(updated_tracking)
+    # Don't increment status when running in debug mode
+    if not debug:
+        tracker.update_tracking(updated_tracking)
+
     return updated_tracking.to_dict()
 
 
@@ -62,16 +66,37 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
     """Queue feeder Lambda handler
 
     The "event" payload contains,
+    ```json
+    {
+        "granule_submit_count": 5000
+    }
     ```
+
+    Optionally, you can provide a `debug=true` flag to indicate that the job
+    output should be sent to a debugging bucket instead of the LPDAAC data
+    ingestion bucket. This is useful for avoiding triggering ingestion downstream.
+    Additionally, grnaules processed in debug mode will be logged but not counted
+    in the granule processing tracking system to ensure we evenutally process the
+    granules.
+
+    To invoke in debug mode, the payload would look like,
+    ```json
     {
         "granule_submit_count": 5000,
+        "debug": true
     }
     ```
     """
+    debug = event.get("debug", False)
+    if debug:
+        output_bucket = os.environ["DEBUG_BUCKET"]
+    else:
+        output_bucket = os.environ["OUTPUT_BUCKET"]
+
     return queue_feeder(
         processing_bucket=os.environ["PROCESSING_BUCKET_NAME"],
         inventory_prefix=os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"],
-        output_bucket=os.environ["OUTPUT_BUCKET"],
+        output_bucket=output_bucket,
         job_queue=os.environ["BATCH_QUEUE_NAME"],
         job_definition_name=os.environ["BATCH_JOB_DEFINITION_NAME"],
         max_active_jobs=int(os.environ["FEEDER_MAX_ACTIVE_JOBS"]),
