@@ -409,6 +409,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-lazy-fixtures" },
+    { name = "responses" },
     { name = "ruff" },
     { name = "types-requests" },
 ]
@@ -435,6 +436,7 @@ dev = [
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=6.1.1" },
     { name = "pytest-lazy-fixtures", specifier = ">=1.1.2" },
+    { name = "responses", specifier = ">=0.25.7" },
     { name = "ruff", specifier = ">=0.11.4" },
     { name = "types-requests", specifier = ">=2.32.0.20250515" },
 ]

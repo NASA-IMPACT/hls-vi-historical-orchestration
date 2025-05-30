@@ -23,6 +23,7 @@ dev = [
     "pydantic-settings>=2.8.1",
     "aws-lambda-typing>=2.20.0",
     "types-requests>=2.32.0.20250515",
+    "responses>=0.25.7",
 ]
 deploy = [
     "aws-cdk-aws-lambda-python-alpha>=2.191.0a0",
@@ -59,7 +60,14 @@ line-length = 88
 extend-select = ["I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["common", "inventory_converter", "job_monitor", "job_requeuer", "queue_feeder"]
+known-first-party = [
+  "common",
+  "edl_credential_rotator",
+  "inventory_converter",
+  "job_monitor",
+  "job_requeuer",
+  "queue_feeder",
+]
 
 [tool.mypy]
 files = ["cdk", "src", "tests"]
