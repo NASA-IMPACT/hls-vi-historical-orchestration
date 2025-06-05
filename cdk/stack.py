@@ -146,6 +146,10 @@ class HlsViStack(Stack):
             ],
         )
 
+        bucket_envvars = {
+            "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
+        }
+
         self.debug_bucket: aws_s3.IBucket | None
         if settings.DEBUG_BUCKET_NAME:
             self.debug_bucket = aws_s3.Bucket.from_bucket_name(
@@ -153,6 +157,7 @@ class HlsViStack(Stack):
                 "DebugBucket",
                 bucket_name=settings.DEBUG_BUCKET_NAME,
             )
+            bucket_envvars["DEBUG_BUCKET"] = settings.DEBUG_BUCKET_NAME
         else:
             self.debug_bucket = None
 
@@ -296,9 +301,9 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_JOB_PREFIX": settings.PROCESSING_BUCKET_JOB_PREFIX,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
-                "OUTPUT_BUCKET": settings.job_output_bucket,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
+                **bucket_envvars,
             },
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(groups=["arrow"]),
@@ -457,9 +462,9 @@ class HlsViStack(Stack):
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
-                "OUTPUT_BUCKET": settings.job_output_bucket,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
+                **bucket_envvars,
             },
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),

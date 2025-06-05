@@ -72,33 +72,23 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
     }
     ```
 
-    Optionally, you can provide a `debug=true` flag to indicate that the job
-    output should be sent to a debugging bucket instead of the LPDAAC data
-    ingestion bucket. This is useful for avoiding triggering ingestion downstream.
-    Additionally, grnaules processed in debug mode will be logged but not counted
+    If this function has a "DEBUG_BUCKET" environment variable defined it will
+    upload the results to this bucket instead of the LPDAAC data ingestion bucket.
+    This is useful for avoiding triggering ingestion downstream.
+    Additionally, granules processed in debug mode will be logged but not counted
     in the granule processing tracking system to ensure we evenutally process the
     granules.
-
-    To invoke in debug mode, the payload would look like,
-    ```json
-    {
-        "granule_submit_count": 5000,
-        "debug": true
-    }
-    ```
     """
-    debug = event.get("debug", False)
-    if debug:
-        output_bucket = os.environ["DEBUG_BUCKET"]
-    else:
-        output_bucket = os.environ["OUTPUT_BUCKET"]
+    output_bucket = os.environ["OUTPUT_BUCKET"]
+    debug_bucket = os.environ.get("DEBUG_BUCKET")
 
     return queue_feeder(
         processing_bucket=os.environ["PROCESSING_BUCKET_NAME"],
         inventory_prefix=os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"],
-        output_bucket=output_bucket,
+        output_bucket=debug_bucket or output_bucket,
         job_queue=os.environ["BATCH_QUEUE_NAME"],
         job_definition_name=os.environ["BATCH_JOB_DEFINITION_NAME"],
         max_active_jobs=int(os.environ["FEEDER_MAX_ACTIVE_JOBS"]),
         granule_submit_count=event["granule_submit_count"],
+        debug=debug_bucket is not None,
     )
