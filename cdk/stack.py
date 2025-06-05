@@ -476,8 +476,17 @@ class HlsViStack(Stack):
         self.processing_bucket.grant_read_write(
             self.job_requeuer_lambda, objects_key_pattern="logs/*"
         )
-        self.processing_job.job_def.grant_submit_job(
-            self.job_requeuer_lambda, self.batch_infra.queue
+        self.queue_feeder_lambda.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=[
+                    self.batch_infra.queue.job_queue_arn,
+                    self.processing_job.job_def_arn_without_revision,
+                ],
+                actions=[
+                    "batch:SubmitJob",
+                ],
+            )
         )
         self.job_retry_queue.grant_consume_messages(self.job_requeuer_lambda)
 
