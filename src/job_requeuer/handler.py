@@ -63,10 +63,11 @@ def handler(event: SQSEvent, context: Context) -> list[str]:
     job_queue = os.environ["BATCH_QUEUE_NAME"]
     job_definition_name = os.environ["BATCH_JOB_DEFINITION_NAME"]
     output_bucket = os.environ["OUTPUT_BUCKET"]
+    debug_bucket = os.environ.get("DEBUG_BUCKET")
 
     return job_requeuer(
         job_queue=job_queue,
         job_definition_name=job_definition_name,
-        output_bucket=output_bucket,
+        output_bucket=debug_bucket or output_bucket,
         event=event,
     )
