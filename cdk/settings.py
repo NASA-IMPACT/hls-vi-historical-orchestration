@@ -22,9 +22,12 @@ class StackSettings(BaseSettings):
     # ----- Buckets
     # Job processing bucket for state (inventories, failures, etc)
     PROCESSING_BUCKET_NAME: str
+    # LPDAAC granule inventories prefix
     PROCESSING_BUCKET_INVENTORY_PREFIX: str = "inventories"
+    # Granule processing event logs prefix
     PROCESSING_BUCKET_LOG_PREFIX: str = "logs"
-    PROCESSING_BUCKET_JOB_PREFIX: str = "jobs"
+    # Prefix for S3 inventories of granule processing logs
+    PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX: str = "logs-inventories"
 
     # LDPAAC private input bucket (*tif files)
     LPDAAC_PROTECTED_BUCKET_NAME: str
