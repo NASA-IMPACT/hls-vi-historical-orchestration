@@ -146,3 +146,42 @@ def test_queue_feeder_handler_granules_all_done(
     mocked_list_inventories.assert_called_once()
     mocked_active_jobs_below_threshold.assert_called_once()
     mocked_batch_client_submit_job.assert_not_called()
+
+
+def test_queue_feeder_doesnt_update_progress_if_debug(
+    bucket: str,
+    output_bucket: str,
+    local_inventory: Path,
+    mocked_list_inventories: MagicMock,
+    mocked_active_jobs_below_threshold: MagicMock,
+    mocked_batch_client_submit_job: MagicMock,
+    batch_queue_name: str,
+    batch_job_definition: str,
+    max_active_jobs: int,
+) -> None:
+    """Test queue feeder happy path"""
+    updated_tracking_data = queue_feeder(
+        processing_bucket=bucket,
+        inventory_prefix="inventories",
+        output_bucket=output_bucket,
+        job_queue=batch_queue_name,
+        job_definition_name=batch_job_definition,
+        max_active_jobs=max_active_jobs,
+        granule_submit_count=2,
+        debug=True,
+    )
+
+    # Ensure our response from function updates info
+    returned_tracking = InventoryTracking.from_dict(updated_tracking_data)
+    assert returned_tracking.inventories[local_inventory.name].submitted_count == 2
+
+    # BUT the actual tracking service should show no such update
+    tracker = GranuleTrackerService(
+        bucket=bucket,
+        inventories_prefix="inventories",
+    )
+    assert tracker.get_tracking().inventories[local_inventory.name].submitted_count == 0
+
+    mocked_list_inventories.assert_called_once()
+    mocked_active_jobs_below_threshold.assert_called_once()
+    assert mocked_batch_client_submit_job.call_count == 2

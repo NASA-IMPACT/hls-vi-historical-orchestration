@@ -35,10 +35,12 @@ class TestGranuleId:
 class TestGranuleProcessingEvent:
     """Test GranuleProcessingEvent"""
 
-    def to_from_envvar(self) -> None:
+    @pytest.mark.parametrize("debug_bucket", ["foo", None])
+    def to_from_envvar(self, debug_bucket: str | None) -> None:
         event = GranuleProcessingEvent(
             granule_id="foo",
             attempt=42,
+            debug_bucket=debug_bucket,
         )
         env = event.to_envvar()
         event_from_envvar = GranuleProcessingEvent.from_envvar(env)

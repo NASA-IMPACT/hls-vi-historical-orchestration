@@ -146,6 +146,21 @@ class HlsViStack(Stack):
             ],
         )
 
+        bucket_envvars = {
+            "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
+        }
+
+        self.debug_bucket: aws_s3.IBucket | None
+        if settings.DEBUG_BUCKET_NAME:
+            self.debug_bucket = aws_s3.Bucket.from_bucket_name(
+                self,
+                "DebugBucket",
+                bucket_name=settings.DEBUG_BUCKET_NAME,
+            )
+            bucket_envvars["DEBUG_BUCKET"] = settings.DEBUG_BUCKET_NAME
+        else:
+            self.debug_bucket = None
+
         # ----------------------------------------------------------------------
         # Earthdata Login (EDL) S3 credential rotator
         # ----------------------------------------------------------------------
@@ -237,6 +252,8 @@ class HlsViStack(Stack):
         self.lpdaac_protected_bucket.grant_read(self.processing_job.role)
         self.lpdaac_public_bucket.grant_read(self.processing_job.role)
         self.edl_s3_credentials.grant_read(self.processing_job.role)
+        if self.debug_bucket is not None:
+            self.debug_bucket.grant_read(self.processing_job.role)
 
         # ----------------------------------------------------------------------
         # One-off inventory conversion Lambda
@@ -284,9 +301,9 @@ class HlsViStack(Stack):
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_JOB_PREFIX": settings.PROCESSING_BUCKET_JOB_PREFIX,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
-                "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
+                **bucket_envvars,
             },
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(groups=["arrow"]),
@@ -445,9 +462,9 @@ class HlsViStack(Stack):
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
-                "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
+                **bucket_envvars,
             },
             bundling=aws_lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),
@@ -459,8 +476,17 @@ class HlsViStack(Stack):
         self.processing_bucket.grant_read_write(
             self.job_requeuer_lambda, objects_key_pattern="logs/*"
         )
-        self.processing_job.job_def.grant_submit_job(
-            self.job_requeuer_lambda, self.batch_infra.queue
+        self.queue_feeder_lambda.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                resources=[
+                    self.batch_infra.queue.job_queue_arn,
+                    self.processing_job.job_def_arn_without_revision,
+                ],
+                actions=[
+                    "batch:SubmitJob",
+                ],
+            )
         )
         self.job_retry_queue.grant_consume_messages(self.job_requeuer_lambda)
 
