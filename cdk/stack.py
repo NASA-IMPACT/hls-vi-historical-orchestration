@@ -63,6 +63,7 @@ class UvHooks:
     """
 
     def __init__(self, groups: list[str] | None = None):
+        super().__init__()
         self.groups = groups
 
     def after_bundling(self, input_dir: str, output_dir: str) -> list[str]:
@@ -144,6 +145,7 @@ class HlsViStack(Stack):
                     noncurrent_version_expiration=Duration.days(1),
                 ),
             ],
+            encryption=aws_s3.BucketEncryption.S3_MANAGED,
         )
 
         bucket_envvars = {
@@ -160,6 +162,42 @@ class HlsViStack(Stack):
             bucket_envvars["DEBUG_BUCKET"] = settings.DEBUG_BUCKET_NAME
         else:
             self.debug_bucket = None
+
+        # ----------------------------------------------------------------------
+        # S3 processing bucket inventory to track our logs
+        # ----------------------------------------------------------------------
+        self.processing_bucket.add_inventory(
+            enabled=True,
+            destination=aws_s3.InventoryDestination(
+                bucket=aws_s3.Bucket.from_bucket_name(
+                    self, "ProcessingBucketRef", settings.PROCESSING_BUCKET_NAME
+                ),
+                prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX,
+            ),
+            inventory_id="granule_processing_logs",
+            format=aws_s3.InventoryFormat.PARQUET,
+            frequency=aws_s3.InventoryFrequency.DAILY,
+            objects_prefix=settings.PROCESSING_BUCKET_LOG_PREFIX,
+            optional_fields=["LastModifiedDate"],
+        )
+
+        # S3 service also needs permissions to push to the bucket
+        self.processing_bucket.add_to_resource_policy(
+            aws_iam.PolicyStatement(
+                actions=[
+                    "s3:PutObject",
+                ],
+                resources=[
+                    self.processing_bucket.arn_for_objects(
+                        f"{settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX}/*"
+                    ),
+                ],
+                principals=[
+                    aws_iam.ServicePrincipal("s3.amazonaws.com"),
+                ],
+                effect=aws_iam.Effect.ALLOW,
+            )
+        )
 
         # ----------------------------------------------------------------------
         # Earthdata Login (EDL) S3 credential rotator
@@ -299,7 +337,6 @@ class HlsViStack(Stack):
             environment={
                 "FEEDER_MAX_ACTIVE_JOBS": str(settings.FEEDER_MAX_ACTIVE_JOBS),
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
-                "PROCESSING_BUCKET_JOB_PREFIX": settings.PROCESSING_BUCKET_JOB_PREFIX,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
