@@ -13,6 +13,7 @@ import boto3
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.csv as pcsv
+import pyarrow.dataset as pds
 import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
@@ -120,21 +121,71 @@ class InventoryRow:
         return parsed_table
 
 
-def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> None:
-    """Convert an inventory file to Parquet"""
-    reader = pcsv.open_csv(
-        str(inventory), read_options=pcsv.ReadOptions(column_names=["contents"])
-    )
+def consolidate_partitions(
+    partitioned_ds: pds.Dataset, output_schema: pa.Schema, destination: Path
+) -> None:
+    """Read back each partition, sort, and consolidate"""
+    logger.info("Consolidating partitions into a final output file")
+    path_partition_expressions = {
+        Path(fragment.path).parent: fragment.partition_expression
+        for fragment in partitioned_ds.get_fragments()
+    }
+
     with pq.ParquetWriter(
-        destination, INVENTORY_SCHEMA, compression="snappy"
+        destination, schema=output_schema, compression="snappy"
     ) as writer:
-        for i, chunk in enumerate(reader):
-            logger.info(f"Processing chunk={i}")
-            parsed = InventoryRow.parse_table(cast(pa.StringArray, chunk["contents"]))
-            parsed_completed = parsed.filter(
-                pc.field("status") == pa.scalar("completed")
+        for path, expr in sorted(path_partition_expressions.items()):
+            table = (
+                partitioned_ds.filter(expr)
+                .sort_by("start_datetime")
+                .to_table(columns=output_schema.names)
             )
-            writer.write(parsed_completed)
+            writer.write(table)
+
+
+def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> None:
+    """Convert an inventory file to Parquet, sorting by datetime
+
+    Sorting without blowing up memory requires two passes,
+
+    1. Read the input inventory in chunks, sorting each chunk and writing into
+       partitions based on datetime
+    2. Read each datetime partition, sort it, and append to the final output file.
+    """
+    reader = pcsv.open_csv(
+        str(inventory),
+        read_options=pcsv.ReadOptions(column_names=["contents"], block_size=int(4e7)),
+    )
+
+    schema_with_year = INVENTORY_SCHEMA.append(pa.field("year", pa.int16()))
+
+    with TemporaryDirectory() as tmp_dir:
+        for i, chunk in enumerate(reader):
+            logger.info(f"Sorting chunk={i} into partitioned dataset")
+            parsed = (
+                InventoryRow.parse_table(cast(pa.StringArray, chunk["contents"]))
+                .filter(pc.field("status") == pa.scalar("completed"))
+                .sort_by("start_datetime")
+            )
+            parsed = parsed.append_column(
+                "year",
+                pc.year(parsed["start_datetime"]).cast(pa.int16()),
+            )
+            pds.write_dataset(
+                parsed,
+                base_dir=tmp_dir,
+                format="parquet",
+                partitioning_flavor="hive",
+                partitioning=["year"],
+                schema=schema_with_year,
+                basename_template=f"tmp-{i}-{{i}}.parquet",
+            )
+
+        # Open partitioned dataset, sort each partition, and consolidate
+        partitioned_ds = pds.dataset(
+            tmp_dir, partitioning="hive", schema=schema_with_year
+        )
+        consolidate_partitions(partitioned_ds, INVENTORY_SCHEMA, destination)
 
 
 def handler(event: dict[str, str], context: Any) -> dict[str, str]:
