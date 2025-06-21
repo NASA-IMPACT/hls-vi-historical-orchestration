@@ -135,6 +135,7 @@ def consolidate_partitions(
         destination, schema=output_schema, compression="snappy"
     ) as writer:
         for path, expr in sorted(path_partition_expressions.items()):
+            logger.info(f"Sorting partition {expr} and writing to output")
             table = (
                 partitioned_ds.filter(expr)
                 .sort_by("start_datetime")
@@ -157,7 +158,13 @@ def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> No
         read_options=pcsv.ReadOptions(column_names=["contents"], block_size=int(4e7)),
     )
 
-    schema_with_year = INVENTORY_SCHEMA.append(pa.field("year", pa.int16()))
+    partition_schema = pa.schema(
+        [
+            *INVENTORY_SCHEMA,
+            pa.field("year", pa.int16()),
+            pa.field("month", pa.int16()),
+        ]
+    )
 
     with TemporaryDirectory() as tmp_dir:
         for i, chunk in enumerate(reader):
@@ -170,20 +177,24 @@ def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> No
             parsed = parsed.append_column(
                 "year",
                 pc.year(parsed["start_datetime"]).cast(pa.int16()),
+            ).append_column(
+                "month",
+                pc.month(parsed["start_datetime"]).cast(pa.int16()),
             )
             pds.write_dataset(
                 parsed,
                 base_dir=tmp_dir,
                 format="parquet",
                 partitioning_flavor="hive",
-                partitioning=["year"],
-                schema=schema_with_year,
-                basename_template=f"tmp-{i}-{{i}}.parquet",
+                partitioning=["year", "month"],
+                schema=partition_schema,
+                basename_template=f"tmp-chunk{i}-{{i}}.parquet",
+                existing_data_behavior="overwrite_or_ignore",
             )
 
         # Open partitioned dataset, sort each partition, and consolidate
         partitioned_ds = pds.dataset(
-            tmp_dir, partitioning="hive", schema=schema_with_year
+            tmp_dir, partitioning="hive", schema=partition_schema
         )
         consolidate_partitions(partitioned_ds, INVENTORY_SCHEMA, destination)
 
