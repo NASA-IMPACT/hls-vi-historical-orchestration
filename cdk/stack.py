@@ -314,7 +314,7 @@ class HlsViStack(Stack):
                 asset_excludes=LAMBDA_EXCLUDE,
                 volumes=UV_DOCKER_VOLUMES,
             ),
-            ephemeral_storage_size=Size.mebibytes(1500),
+            ephemeral_storage_size=Size.mebibytes(2500),
         )
         self.processing_bucket.grant_read_write(
             self.inventory_converter_lambda,
