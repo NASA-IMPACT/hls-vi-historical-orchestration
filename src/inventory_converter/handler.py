@@ -155,7 +155,7 @@ def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> No
     """
     reader = pcsv.open_csv(
         str(inventory),
-        read_options=pcsv.ReadOptions(column_names=["contents"], block_size=int(4e7)),
+        read_options=pcsv.ReadOptions(column_names=["contents"], block_size=4_000_000),
     )
 
     partition_schema = pa.schema(
