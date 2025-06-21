@@ -235,7 +235,7 @@ def handler(event: dict[str, str], context: Any) -> dict[str, str]:
         *[s3path.replace("s3://", "").split("/", 1) for s3path in event["inventories"]]
     )
     # remove .sorted* suffix - should just get 1
-    src_basename = list({src_key.rsplit(".", 1)[0] for src_key in src_keys})[0]
+    src_basename = list({src_key.rsplit("/", 1)[1] for src_key in src_keys})[0]
 
     dest_key = f"{dest_prefix}/{src_basename}.parquet"
 
