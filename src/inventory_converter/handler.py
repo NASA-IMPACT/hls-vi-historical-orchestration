@@ -199,6 +199,10 @@ def convert_inventory_to_parquet(
                     existing_data_behavior="overwrite_or_ignore",
                 )
 
+        # Delete original datasets to save space
+        for inventory in inventories:
+            inventory.unlink()
+
         # Open partitioned dataset, sort each partition, and consolidate
         partitioned_ds = pds.dataset(
             tmp_dir, partitioning="hive", schema=partition_schema
