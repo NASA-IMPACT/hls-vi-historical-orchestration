@@ -144,7 +144,9 @@ def consolidate_partitions(
             writer.write(table)
 
 
-def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> None:
+def convert_inventory_to_parquet(
+    inventory: str | Path, destination: Path, block_size: int = 12_000_000
+) -> None:
     """Convert an inventory file to Parquet, sorting by datetime
 
     Sorting without blowing up memory requires two passes,
@@ -155,7 +157,7 @@ def convert_inventory_to_parquet(inventory: str | Path, destination: Path) -> No
     """
     reader = pcsv.open_csv(
         str(inventory),
-        read_options=pcsv.ReadOptions(column_names=["contents"], block_size=4_000_000),
+        read_options=pcsv.ReadOptions(column_names=["contents"], block_size=block_size),
     )
 
     partition_schema = pa.schema(
@@ -230,7 +232,11 @@ def handler(event: dict[str, str], context: Any) -> dict[str, str]:
         inventory_parquet = Path(tmpdir) / "inventory.parquet"
         s3.download_file(src_bucket, src_key, str(inventory_flatfile))
 
-        convert_inventory_to_parquet(inventory_flatfile, inventory_parquet)
+        convert_inventory_to_parquet(
+            inventory_flatfile,
+            inventory_parquet,
+            block_size=int(event.get("block_size", 12_000_000)),
+        )
 
         s3.upload_file(
             str(inventory_parquet),
