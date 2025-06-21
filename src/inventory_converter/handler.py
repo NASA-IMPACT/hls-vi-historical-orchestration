@@ -145,7 +145,7 @@ def consolidate_partitions(
 
 
 def convert_inventory_to_parquet(
-    inventory: str | Path, destination: Path, block_size: int = 12_000_000
+    inventories: list[Path], destination: Path, block_size: int = 12_000_000
 ) -> None:
     """Convert an inventory file to Parquet, sorting by datetime
 
@@ -155,11 +155,6 @@ def convert_inventory_to_parquet(
        partitions based on datetime
     2. Read each datetime partition, sort it, and append to the final output file.
     """
-    reader = pcsv.open_csv(
-        str(inventory),
-        read_options=pcsv.ReadOptions(column_names=["contents"], block_size=block_size),
-    )
-
     partition_schema = pa.schema(
         [
             *INVENTORY_SCHEMA,
@@ -169,36 +164,47 @@ def convert_inventory_to_parquet(
     )
 
     with TemporaryDirectory() as tmp_dir:
-        for i, chunk in enumerate(reader):
-            logger.info(f"Sorting chunk={i} into partitioned dataset")
-            parsed = (
-                InventoryRow.parse_table(cast(pa.StringArray, chunk["contents"]))
-                .filter(pc.field("status") == pa.scalar("completed"))
-                .sort_by("start_datetime")
+        for i_inventory, inventory in enumerate(inventories):
+            reader = pcsv.open_csv(
+                str(inventory),
+                read_options=pcsv.ReadOptions(
+                    column_names=["contents"], block_size=block_size
+                ),
             )
-            parsed = parsed.append_column(
-                "year",
-                pc.year(parsed["start_datetime"]).cast(pa.int16()),
-            ).append_column(
-                "month",
-                pc.month(parsed["start_datetime"]).cast(pa.int16()),
-            )
-            pds.write_dataset(
-                parsed,
-                base_dir=tmp_dir,
-                format="parquet",
-                partitioning_flavor="hive",
-                partitioning=["year", "month"],
-                schema=partition_schema,
-                basename_template=f"tmp-chunk{i}-{{i}}.parquet",
-                existing_data_behavior="overwrite_or_ignore",
-            )
+
+            for i_chunk, chunk in enumerate(reader):
+                logger.info(
+                    f"Sorting {inventory} chunk={i_chunk} into partitioned dataset"
+                )
+                parsed = (
+                    InventoryRow.parse_table(cast(pa.StringArray, chunk["contents"]))
+                    .filter(pc.field("status") == pa.scalar("completed"))
+                    .sort_by("start_datetime")
+                )
+                parsed = parsed.append_column(
+                    "year",
+                    pc.year(parsed["start_datetime"]).cast(pa.int16()),
+                ).append_column(
+                    "month",
+                    pc.month(parsed["start_datetime"]).cast(pa.int16()),
+                )
+                pds.write_dataset(
+                    parsed,
+                    base_dir=tmp_dir,
+                    format="parquet",
+                    partitioning_flavor="hive",
+                    partitioning=["year", "month"],
+                    schema=partition_schema,
+                    basename_template=f"tmp-inventory{i_inventory}-chunk{i_chunk}-{{i}}.parquet",
+                    existing_data_behavior="overwrite_or_ignore",
+                )
 
         # Open partitioned dataset, sort each partition, and consolidate
         partitioned_ds = pds.dataset(
             tmp_dir, partitioning="hive", schema=partition_schema
         )
         consolidate_partitions(partitioned_ds, INVENTORY_SCHEMA, destination)
+        logger.info("Completed parsing, sorting, and writing inventories to Parquet")
 
 
 def handler(event: dict[str, str], context: Any) -> dict[str, str]:
@@ -207,8 +213,10 @@ def handler(event: dict[str, str], context: Any) -> dict[str, str]:
     The event payload is expected to look like,
     ```
     {
-        "bucket": "bucket",
-        "key": "/key/to/inventory/file"
+        "inventories": [
+            "s3://bucket/key/to/inventory/file1",
+            "s3://bucket/key/to/inventory/file2"
+        ]
     }
     ```
     """
@@ -218,22 +226,27 @@ def handler(event: dict[str, str], context: Any) -> dict[str, str]:
     dest_bucket = os.environ["PROCESSING_BUCKET_NAME"]
     dest_prefix = os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"].rstrip("/")
 
-    # Source
-    src_bucket = event["bucket"]
-    src_key = event["key"]
-    src_basename = src_key.split("/")[-1]
+    # Parse source inventories into buckets and keys
+    src_buckets, src_keys = zip(
+        *[s3path.replace("s3://", "").split("/", 1) for s3path in event["inventories"]]
+    )
+    # remove .sorted* suffix - should just get 1
+    src_basename = list({src_key.rsplit(".", 1)[0] for src_key in src_keys})[0]
 
     dest_key = f"{dest_prefix}/{src_basename}.parquet"
 
-    logger.info(f"Processing s3://{src_bucket}/{src_key}")
-
     with TemporaryDirectory() as tmpdir:
-        inventory_flatfile = Path(tmpdir) / "inventory.flat"
         inventory_parquet = Path(tmpdir) / "inventory.parquet"
-        s3.download_file(src_bucket, src_key, str(inventory_flatfile))
+
+        inventory_flatfiles = []
+        for src_bucket, src_key in zip(src_buckets, src_keys):
+            logger.info(f"Processing s3://{src_bucket}/{src_key}")
+            inventory_flatfile = Path(tmpdir) / src_key.rsplit("/", 1)[1]
+            s3.download_file(src_bucket, src_key, str(inventory_flatfile))
+            inventory_flatfiles.append(inventory_flatfile)
 
         convert_inventory_to_parquet(
-            inventory_flatfile,
+            inventory_flatfiles,
             inventory_parquet,
             block_size=int(event.get("block_size", 12_000_000)),
         )

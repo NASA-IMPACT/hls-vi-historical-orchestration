@@ -63,7 +63,7 @@ def test_convert_inventory_to_parquet(
             for line in lines:
                 f.write(f"{line}\n")
 
-    convert_inventory_to_parquet(src, dst)
+    convert_inventory_to_parquet([src], dst)
 
     df = pd.read_parquet(dst)
     np.testing.assert_array_equal(
