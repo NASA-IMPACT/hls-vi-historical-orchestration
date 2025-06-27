@@ -1,6 +1,15 @@
-from typing import Literal
+import datetime as dt
+from typing import Annotated, Any, Literal
 
+from pydantic import BeforeValidator
 from pydantic_settings import BaseSettings
+
+
+def include_trailing_slash(value: Any) -> Any:
+    """Make sure the value includes a trailing slash if str"""
+    if isinstance(value, str):
+        return value.rstrip("/") + "/"
+    return value
 
 
 class StackSettings(BaseSettings):
@@ -21,13 +30,19 @@ class StackSettings(BaseSettings):
 
     # ----- Buckets
     # Job processing bucket for state (inventories, failures, etc)
-    PROCESSING_BUCKET_NAME: str
+    PROCESSING_BUCKET_NAME: Annotated[str, BeforeValidator(include_trailing_slash)]
     # LPDAAC granule inventories prefix
-    PROCESSING_BUCKET_INVENTORY_PREFIX: str = "inventories"
+    PROCESSING_BUCKET_INVENTORY_PREFIX: Annotated[
+        str, BeforeValidator(include_trailing_slash)
+    ] = "inventories/"
     # Granule processing event logs prefix
-    PROCESSING_BUCKET_LOG_PREFIX: str = "logs"
+    PROCESSING_BUCKET_LOG_PREFIX: Annotated[
+        str, BeforeValidator(include_trailing_slash)
+    ] = "logs/"
     # Prefix for S3 inventories of granule processing logs
-    PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX: str = "logs-inventories"
+    PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX: Annotated[
+        str, BeforeValidator(include_trailing_slash)
+    ] = "logs-inventories/"
 
     # LDPAAC private input bucket (*tif files)
     LPDAAC_PROTECTED_BUCKET_NAME: str
