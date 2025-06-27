@@ -46,7 +46,7 @@ def job_requeuer(
     return jobs
 
 
-def handler(event: SQSEvent, context: Context) -> list[str]:
+def handler(event: SQSEvent, context: Context) -> dict[str, list[str]]:
     """Resubmit failed processing events that can be retried
 
     This Lambda is fed by a SQS queue, so the event payload looks like,

@@ -7,12 +7,16 @@ from aws_cdk import Aws, RemovalPolicy, aws_glue
 from constructs import Construct
 
 
-def athena_type_to_presto(athena_type: str) -> str:
+def athena_type_to_presto(athena_type: str | None) -> str:
     """Convert Athena column types to Presto types
 
     This only supports a relevant subset of types. See also:
     https://docs.aws.amazon.com/athena/latest/ug/data-types.html
     """
+    # for type checking...
+    if athena_type is None:
+        raise ValueError("Cannot parse null athena type")
+
     lowered = athena_type.lower()
     return {
         "string": "varchar",
@@ -49,6 +53,7 @@ class AthenaLogsDatabase(Construct):
             },
         )
         self.s3_inventory_table = self._create_s3_inventory_table(
+            database_name=database_name,
             database=self.database,
             table_datetime_start=table_datetime_start,
             logs_s3_inventory_table_name=logs_s3_inventory_table_name,
@@ -56,7 +61,8 @@ class AthenaLogsDatabase(Construct):
         )
         self.granule_processing_events_view = (
             self._create_granule_processing_events_view(
-                database=self.database,
+                database_name=database_name,
+                logs_s3_inventory_table_name=logs_s3_inventory_table_name,
                 logs_s3_inventory_table=self.s3_inventory_table,
                 granule_processing_events_view_name=granule_processing_events_view_name,
             )
@@ -65,6 +71,7 @@ class AthenaLogsDatabase(Construct):
     def _create_s3_inventory_table(
         self,
         *,
+        database_name: str,
         database: aws_glue.CfnDatabase,
         table_datetime_start: dt.datetime,
         logs_s3_inventory_table_name: str,
@@ -72,11 +79,12 @@ class AthenaLogsDatabase(Construct):
     ) -> aws_glue.CfnTable:
         """Create a Glue table for the S3 inventory reports"""
         table_datetime_start_str = table_datetime_start.strftime("%Y-%m-%d-%H-%M")
+
         table = aws_glue.CfnTable(
             self,
             "S3InventoryTable",
             catalog_id=Aws.ACCOUNT_ID,
-            database_name=self.database.database_input.name,
+            database_name=database_name,
             table_input=aws_glue.CfnTable.TableInputProperty(
                 name=logs_s3_inventory_table_name,
                 table_type="EXTERNAL_TABLE",
@@ -148,16 +156,17 @@ class AthenaLogsDatabase(Construct):
     def _create_granule_processing_events_view(
         self,
         *,
-        database: aws_glue.CfnDatabase,
+        database_name: str,
+        logs_s3_inventory_table_name: str,
         logs_s3_inventory_table: aws_glue.CfnTable,
         granule_processing_events_view_name: str,
     ) -> aws_glue.CfnTable:
         """Create a view for granule processing events logs"""
         sql = f"""WITH latest AS (
             SELECT *
-            FROM {logs_s3_inventory_table.table_input.name}
+            FROM {logs_s3_inventory_table_name}
             WHERE
-                dt = (SELECT min(dt) from logs_s3_inventories)
+                dt = (SELECT min(dt) FROM logs_s3_inventories)
                 AND is_latest
                 AND NOT is_delete_marker
         ),
@@ -213,7 +222,7 @@ class AthenaLogsDatabase(Construct):
         view_specification = {
             "originalSql": sql,
             "catalog": Aws.ACCOUNT_ID,
-            "schema": self.database.database_input.name,
+            "schema": database_name,
             "columns": [
                 {"name": column.name, "type": athena_type_to_presto(column.type)}
                 for column in columns
@@ -228,7 +237,7 @@ class AthenaLogsDatabase(Construct):
             self,
             "GranuleProcessingEventsView",
             catalog_id=Aws.ACCOUNT_ID,
-            database_name=self.database.database_input.name,
+            database_name=database_name,
             table_input=aws_glue.CfnTable.TableInputProperty(
                 name=granule_processing_events_view_name,
                 table_type="VIRTUAL_VIEW",
