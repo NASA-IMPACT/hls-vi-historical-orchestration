@@ -14,6 +14,7 @@ class BatchInfra(Construct):
         *,
         vpc: aws_ec2.IVpc,
         max_vcpu: int,
+        base_name: str,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -35,11 +36,13 @@ class BatchInfra(Construct):
                 subnet_type=aws_ec2.SubnetType.PRIVATE_ISOLATED,
             ),
             vpc=vpc,
+            compute_environment_name=f"{base_name}-compute-environment",
         )
 
         self.queue = aws_batch.JobQueue(
             self,
             "JobQueue",
+            job_queue_name=f"{base_name}-job-queue",
         )
         self.queue.add_compute_environment(self.compute_environment, 1)
 
