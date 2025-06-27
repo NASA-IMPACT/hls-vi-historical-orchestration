@@ -172,7 +172,7 @@ class AthenaLogsDatabase(Construct):
             try(splits[3]) AS sensor,
             try(date_parse(splits[4], '%Y-%m-%d')) AS acquisition_date,
             try(splits[5]) AS granule_id,
-            try(cast(split_part(splits[6], '.', 2) AS INTEGER)) AS attempt,
+            try(cast(split_part(splits[6], '.', 2) AS INT)) AS attempt,
             last_modified_date
         FROM nested
         """
@@ -201,7 +201,7 @@ class AthenaLogsDatabase(Construct):
             aws_glue.CfnTable.ColumnProperty(
                 name="attempt",
                 comment="Attempt.",
-                type="INTEGER",
+                type="int",
             ),
             aws_glue.CfnTable.ColumnProperty(
                 name="last_modified_date",
