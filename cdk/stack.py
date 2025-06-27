@@ -191,7 +191,7 @@ class HlsViStack(Stack):
                 ],
                 resources=[
                     self.processing_bucket.arn_for_objects(
-                        f"{settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX}/*"
+                        f"{settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX}*"
                     ),
                 ],
                 principals=[
@@ -340,7 +340,7 @@ class HlsViStack(Stack):
         )
         self.processing_bucket.grant_read_write(
             self.inventory_converter_lambda,
-            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}/*",
+            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}*",
         )
 
         # ----------------------------------------------------------------------
