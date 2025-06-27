@@ -65,9 +65,10 @@ def handler(event: SQSEvent, context: Context) -> list[str]:
     output_bucket = os.environ["OUTPUT_BUCKET"]
     debug_bucket = os.environ.get("DEBUG_BUCKET")
 
-    return job_requeuer(
+    job_requeuer(
         job_queue=job_queue,
         job_definition_name=job_definition_name,
         output_bucket=debug_bucket or output_bucket,
         event=event,
     )
+    return {"batchItemFailures": []}
