@@ -514,7 +514,7 @@ class HlsViStack(Stack):
         self.processing_bucket.grant_read_write(
             self.job_requeuer_lambda, objects_key_pattern="logs/*"
         )
-        self.queue_feeder_lambda.add_to_role_policy(
+        self.job_requeuer_lambda.add_to_role_policy(
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
                 resources=[
