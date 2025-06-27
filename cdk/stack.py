@@ -20,7 +20,7 @@ from aws_cdk import (
 )
 from aws_cdk import aws_lambda_python_alpha as aws_lambda_python
 from constructs import Construct
-from hls_constructs import BatchInfra, BatchJob
+from hls_constructs import AthenaLogsDatabase, BatchInfra, BatchJob
 from settings import StackSettings
 
 LAMBDA_EXCLUDE = [
@@ -166,6 +166,7 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # S3 processing bucket inventory to track our logs
         # ----------------------------------------------------------------------
+        inventory_id = "granule_processing_logs"
         self.processing_bucket.add_inventory(
             enabled=True,
             destination=aws_s3.InventoryDestination(
@@ -174,12 +175,13 @@ class HlsViStack(Stack):
                 ),
                 prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX,
             ),
-            inventory_id="granule_processing_logs",
+            inventory_id=inventory_id,
             format=aws_s3.InventoryFormat.PARQUET,
             frequency=aws_s3.InventoryFrequency.DAILY,
             objects_prefix=settings.PROCESSING_BUCKET_LOG_PREFIX,
             optional_fields=["LastModifiedDate"],
         )
+        # FIXME: add lifecycle policy for inventory reports ~> 7 days
 
         # S3 service also needs permissions to push to the bucket
         self.processing_bucket.add_to_resource_policy(
@@ -197,6 +199,25 @@ class HlsViStack(Stack):
                 ],
                 effect=aws_iam.Effect.ALLOW,
             )
+        )
+
+        logs_s3_inventory_location_s3path = "/".join(
+            [
+                f"s3://{settings.PROCESSING_BUCKET_NAME}",
+                settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX.rstrip("/"),
+                settings.PROCESSING_BUCKET_NAME,
+                inventory_id,
+                "hive",
+            ]
+        )
+        self.athena_logs_database = AthenaLogsDatabase(
+            self,
+            "AthenaLogsDatabase",
+            database_name=settings.ATHENA_LOGS_DATABASE_NAME,
+            table_datetime_start=settings.ATHENA_LOGS_S3_INVENTORY_TABLE_START_DATETIME,
+            logs_s3_inventory_location_s3path=logs_s3_inventory_location_s3path,
+            logs_s3_inventory_table_name=settings.ATHENA_LOGS_S3_INVENTORY_TABLE_NAME,
+            granule_processing_events_view_name=settings.ATHENA_LOGS_GRANULE_PROCESSING_EVENTS_VIEW_NAME,
         )
 
         # ----------------------------------------------------------------------
