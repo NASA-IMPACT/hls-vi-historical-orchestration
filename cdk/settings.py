@@ -1,6 +1,15 @@
-from typing import Literal
+import datetime as dt
+from typing import Annotated, Any, Literal
 
+from pydantic import BeforeValidator
 from pydantic_settings import BaseSettings
+
+
+def include_trailing_slash(value: Any) -> Any:
+    """Make sure the value includes a trailing slash if str"""
+    if isinstance(value, str):
+        return value.rstrip("/") + "/"
+    return value
 
 
 class StackSettings(BaseSettings):
@@ -23,11 +32,17 @@ class StackSettings(BaseSettings):
     # Job processing bucket for state (inventories, failures, etc)
     PROCESSING_BUCKET_NAME: str
     # LPDAAC granule inventories prefix
-    PROCESSING_BUCKET_INVENTORY_PREFIX: str = "inventories"
+    PROCESSING_BUCKET_INVENTORY_PREFIX: Annotated[
+        str, BeforeValidator(include_trailing_slash)
+    ] = "inventories/"
     # Granule processing event logs prefix
-    PROCESSING_BUCKET_LOG_PREFIX: str = "logs"
+    PROCESSING_BUCKET_LOG_PREFIX: Annotated[
+        str, BeforeValidator(include_trailing_slash)
+    ] = "logs/"
     # Prefix for S3 inventories of granule processing logs
-    PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX: str = "logs-inventories"
+    PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX: Annotated[
+        str, BeforeValidator(include_trailing_slash)
+    ] = "logs-inventories/"
 
     # LDPAAC private input bucket (*tif files)
     LPDAAC_PROTECTED_BUCKET_NAME: str
@@ -73,3 +88,9 @@ class StackSettings(BaseSettings):
     JOB_FAILURE_DLQ_NAME: str
     # Give up requeueing after N attempts
     JOB_RETRY_MAX_ATTEMPTS: int = 3
+
+    # ----- Logs inventory Athena database
+    ATHENA_LOGS_DATABASE_NAME: str
+    ATHENA_LOGS_S3_INVENTORY_TABLE_START_DATETIME: dt.datetime
+    ATHENA_LOGS_S3_INVENTORY_TABLE_NAME: str = "logs_s3_inventories"
+    ATHENA_LOGS_GRANULE_PROCESSING_EVENTS_VIEW_NAME: str = "granule_processing_events"
