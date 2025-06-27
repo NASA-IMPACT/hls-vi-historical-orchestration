@@ -181,7 +181,10 @@ class HlsViStack(Stack):
             objects_prefix=settings.PROCESSING_BUCKET_LOG_PREFIX,
             optional_fields=["LastModifiedDate"],
         )
-        # FIXME: add lifecycle policy for inventory reports ~> 7 days
+        self.processing_bucket.add_lifecycle_rule(
+            prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX,
+            expiration=Duration.days(14),
+        )
 
         # S3 service also needs permissions to push to the bucket
         self.processing_bucket.add_to_resource_policy(
