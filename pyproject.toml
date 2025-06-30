@@ -68,6 +68,7 @@ known-first-party = [
   "job_requeuer",
   "queue_feeder",
 ]
+combine-as-imports = true
 
 [tool.mypy]
 files = ["cdk", "src", "tests"]

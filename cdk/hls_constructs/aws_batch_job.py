@@ -4,10 +4,10 @@ from aws_cdk import (
     Aws,
     Duration,
     Size,
-    aws_batch,
-    aws_ecs,
-    aws_iam,
-    aws_logs,
+    aws_batch as batch,
+    aws_ecs as ecs,
+    aws_iam as iam,
+    aws_logs as logs,
 )
 from constructs import Construct
 
@@ -47,13 +47,13 @@ class BatchJob(Construct):
         memory_mb: int,
         retry_attempts: int,
         log_group_name: str,
-        secrets: None | dict[str, aws_batch.Secret] = None,
+        secrets: None | dict[str, batch.Secret] = None,
         stage: Literal["dev", "prod"],
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        self.log_group = aws_logs.LogGroup(
+        self.log_group = logs.LogGroup(
             self,
             "JobLogGroup",
             log_group_name=log_group_name,
@@ -61,19 +61,19 @@ class BatchJob(Construct):
 
         # Execution role needs ECR permissions to pull from private repo
         # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecr-required-iam-permissions
-        execution_role = aws_iam.Role(
+        execution_role = iam.Role(
             self,
             "ExecutionRole",
-            assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
             managed_policies=[
-                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                iam.ManagedPolicy.from_aws_managed_policy_name(
                     "service-role/AmazonECSTaskExecutionRolePolicy"
                 )
             ],
         )
         execution_role.add_to_policy(
-            aws_iam.PolicyStatement(
-                effect=aws_iam.Effect.ALLOW,
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
                 resources=["*"],
                 actions=[
                     "ecr:GetAuthorizationToken",
@@ -82,8 +82,8 @@ class BatchJob(Construct):
         )
         if ecr_repo_arn := ecr_uri_to_repo_arn(container_ecr_uri):
             execution_role.add_to_policy(
-                aws_iam.PolicyStatement(
-                    effect=aws_iam.Effect.ALLOW,
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
                     resources=[
                         ecr_repo_arn,
                     ],
@@ -94,25 +94,25 @@ class BatchJob(Construct):
                 )
             )
 
-        self.role = aws_iam.Role(
+        self.role = iam.Role(
             self,
             "TaskRole",
-            assumed_by=aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
             role_name=f"hls-vi-historical-processing-role-{stage}",
         )
 
-        self.job_def = aws_batch.EcsJobDefinition(
+        self.job_def = batch.EcsJobDefinition(
             self,
             "JobDef",
-            container=aws_batch.EcsEc2ContainerDefinition(
+            container=batch.EcsEc2ContainerDefinition(
                 self,
                 "BatchContainerDef",
-                image=aws_ecs.ContainerImage.from_registry(container_ecr_uri),
+                image=ecs.ContainerImage.from_registry(container_ecr_uri),
                 execution_role=execution_role,
                 job_role=self.role,
                 cpu=vcpu,
                 memory=Size.mebibytes(memory_mb),
-                logging=aws_ecs.LogDriver.aws_logs(
+                logging=ecs.LogDriver.aws_logs(
                     stream_prefix="job",
                     log_group=self.log_group,
                 ),
@@ -121,15 +121,15 @@ class BatchJob(Construct):
             timeout=Duration.hours(1),
             retry_attempts=retry_attempts,
             retry_strategies=[
-                aws_batch.RetryStrategy.of(
-                    aws_batch.Action.RETRY, aws_batch.Reason.CANNOT_PULL_CONTAINER
+                batch.RetryStrategy.of(
+                    batch.Action.RETRY, batch.Reason.CANNOT_PULL_CONTAINER
                 ),
-                aws_batch.RetryStrategy.of(
-                    aws_batch.Action.RETRY, aws_batch.Reason.SPOT_INSTANCE_RECLAIMED
+                batch.RetryStrategy.of(
+                    batch.Action.RETRY, batch.Reason.SPOT_INSTANCE_RECLAIMED
                 ),
-                aws_batch.RetryStrategy.of(
-                    aws_batch.Action.EXIT,
-                    aws_batch.Reason.custom(on_reason="*"),
+                batch.RetryStrategy.of(
+                    batch.Action.EXIT,
+                    batch.Reason.custom(on_reason="*"),
                 ),
             ],
             propagate_tags=True,

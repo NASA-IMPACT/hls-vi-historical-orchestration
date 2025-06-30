@@ -3,7 +3,7 @@ import datetime as dt
 import json
 from typing import Any
 
-from aws_cdk import Aws, RemovalPolicy, aws_glue
+from aws_cdk import Aws, RemovalPolicy, aws_glue as glue
 from constructs import Construct
 
 
@@ -44,12 +44,12 @@ class AthenaLogsDatabase(Construct):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        self.database = aws_glue.CfnDatabase(
+        self.database = glue.CfnDatabase(
             self,
             "Database",
             catalog_id=Aws.ACCOUNT_ID,
             database_name=database_name,
-            database_input=aws_glue.CfnDatabase.DatabaseInputProperty(
+            database_input=glue.CfnDatabase.DatabaseInputProperty(
                 name=database_name,
                 description="Database for HLS-VI Historical Orchestration task logging.",
             ),
@@ -72,21 +72,21 @@ class AthenaLogsDatabase(Construct):
     def _create_s3_inventory_table(
         self,
         *,
-        database: aws_glue.CfnDatabase,
+        database: glue.CfnDatabase,
         table_datetime_start: dt.datetime,
         logs_s3_inventory_table_name: str,
         logs_s3_inventory_location_s3path: str,
-    ) -> aws_glue.CfnTable:
+    ) -> glue.CfnTable:
         """Create a Glue table for the S3 inventory reports"""
         database_name = database.database_name
         assert database_name is not None
 
-        table = aws_glue.CfnTable(
+        table = glue.CfnTable(
             self,
             "S3InventoryTable",
             catalog_id=Aws.ACCOUNT_ID,
             database_name=database_name,
-            table_input=aws_glue.CfnTable.TableInputProperty(
+            table_input=glue.CfnTable.TableInputProperty(
                 name=logs_s3_inventory_table_name,
                 table_type="EXTERNAL_TABLE",
                 parameters={
@@ -99,40 +99,40 @@ class AthenaLogsDatabase(Construct):
                     "projection.dt.format": "yyyy-MM-dd-HH-mm",
                 },
                 partition_keys=[
-                    aws_glue.CfnTable.ColumnProperty(
+                    glue.CfnTable.ColumnProperty(
                         name="dt",
                         comment="Report date",
                         type="String",
                     ),
                 ],
-                storage_descriptor=aws_glue.CfnTable.StorageDescriptorProperty(
+                storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
                     columns=[
-                        aws_glue.CfnTable.ColumnProperty(
+                        glue.CfnTable.ColumnProperty(
                             name="bucket",
                             comment="The name of the bucket that the inventory is for.",
                             type="String",
                         ),
-                        aws_glue.CfnTable.ColumnProperty(
+                        glue.CfnTable.ColumnProperty(
                             name="key",
                             comment="The object key name (or key) that uniquely identifies the object in the bucket.",
                             type="String",
                         ),
-                        aws_glue.CfnTable.ColumnProperty(
+                        glue.CfnTable.ColumnProperty(
                             name="version_id",
                             comment="The object version ID.",
                             type="String",
                         ),
-                        aws_glue.CfnTable.ColumnProperty(
+                        glue.CfnTable.ColumnProperty(
                             name="is_latest",
                             comment="Set to True if the object is the current version of the object.",
                             type="boolean",
                         ),
-                        aws_glue.CfnTable.ColumnProperty(
+                        glue.CfnTable.ColumnProperty(
                             name="is_delete_marker",
                             comment="Set to True if the object is a delete marker.",
                             type="boolean",
                         ),
-                        aws_glue.CfnTable.ColumnProperty(
+                        glue.CfnTable.ColumnProperty(
                             name="last_modified_date",
                             comment="The object creation date or the last modified date, whichever is the latest.",
                             type="timestamp",
@@ -141,7 +141,7 @@ class AthenaLogsDatabase(Construct):
                     location=logs_s3_inventory_location_s3path,
                     input_format="org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat",
                     output_format="org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
-                    serde_info=aws_glue.CfnTable.SerdeInfoProperty(
+                    serde_info=glue.CfnTable.SerdeInfoProperty(
                         serialization_library="org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
                         parameters={
                             "serialization.format": "1",
@@ -157,11 +157,11 @@ class AthenaLogsDatabase(Construct):
     def _create_granule_processing_events_view(
         self,
         *,
-        database: str,
+        database: glue.CfnDatabase,
         logs_s3_inventory_table_name: str,
-        logs_s3_inventory_table: aws_glue.CfnTable,
+        logs_s3_inventory_table: glue.CfnTable,
         granule_processing_events_view_name: str,
-    ) -> aws_glue.CfnTable:
+    ) -> glue.CfnTable:
         """Create a view for granule processing events logs"""
         database_name = database.database_name
         assert database_name is not None
@@ -191,32 +191,32 @@ class AthenaLogsDatabase(Construct):
         """
 
         columns = [
-            aws_glue.CfnTable.ColumnProperty(
+            glue.CfnTable.ColumnProperty(
                 name="status",
                 comment="The processing event status (failed, success).",
                 type="String",
             ),
-            aws_glue.CfnTable.ColumnProperty(
+            glue.CfnTable.ColumnProperty(
                 name="sensor",
                 comment="The sensor (L30, S30).",
                 type="String",
             ),
-            aws_glue.CfnTable.ColumnProperty(
+            glue.CfnTable.ColumnProperty(
                 name="acquisition_date",
                 comment="The acquisition date.",
                 type="timestamp",
             ),
-            aws_glue.CfnTable.ColumnProperty(
+            glue.CfnTable.ColumnProperty(
                 name="granule_id",
                 comment="HLS granule ID.",
                 type="String",
             ),
-            aws_glue.CfnTable.ColumnProperty(
+            glue.CfnTable.ColumnProperty(
                 name="attempt",
                 comment="Attempt.",
                 type="int",
             ),
-            aws_glue.CfnTable.ColumnProperty(
+            glue.CfnTable.ColumnProperty(
                 name="last_modified_date",
                 comment="The event log's creation date or the last modified date, whichever is the latest.",
                 type="timestamp",
@@ -237,23 +237,23 @@ class AthenaLogsDatabase(Construct):
             json.dumps(view_specification).encode("utf-8")
         ).decode("utf-8")
 
-        view = aws_glue.CfnTable(
+        view = glue.CfnTable(
             self,
             "GranuleProcessingEventsView",
             catalog_id=Aws.ACCOUNT_ID,
             database_name=database_name,
-            table_input=aws_glue.CfnTable.TableInputProperty(
+            table_input=glue.CfnTable.TableInputProperty(
                 name=granule_processing_events_view_name,
                 table_type="VIRTUAL_VIEW",
                 parameters={"presto_view": "true", "comment": "Presto View"},
                 partition_keys=[
-                    aws_glue.CfnTable.ColumnProperty(
+                    glue.CfnTable.ColumnProperty(
                         name="dt",
                         comment="Report date",
                         type="String",
                     ),
                 ],
-                storage_descriptor=aws_glue.CfnTable.StorageDescriptorProperty(
+                storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
                     columns=columns,
                     input_format="org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat",
                     output_format="org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
