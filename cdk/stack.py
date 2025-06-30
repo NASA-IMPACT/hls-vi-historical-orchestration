@@ -8,19 +8,19 @@ from aws_cdk import (
     RemovalPolicy,
     Size,
     Stack,
-    aws_batch,
-    aws_ec2,
-    aws_events,
-    aws_events_targets,
-    aws_iam,
-    aws_lambda,
-    aws_s3,
-    aws_secretsmanager,
-    aws_sqs,
+    aws_batch as batch,
+    aws_ec2 as ec2,
+    aws_events as events,
+    aws_events_targets as events_targets,
+    aws_iam as iam,
+    aws_lambda as lambda_,
+    aws_lambda_python_alpha as lambda_python,
+    aws_s3 as s3,
+    aws_secretsmanager as secretsmanager,
+    aws_sqs as sqs,
 )
-from aws_cdk import aws_lambda_python_alpha as aws_lambda_python
 from constructs import Construct
-from hls_constructs import BatchInfra, BatchJob
+from hls_constructs import AthenaLogsDatabase, BatchInfra, BatchJob
 from settings import StackSettings
 
 LAMBDA_EXCLUDE = [
@@ -54,7 +54,7 @@ UV_DOCKER_VOLUMES = [
 ]
 
 
-@jsii.implements(aws_lambda_python.ICommandHooks)
+@jsii.implements(lambda_python.ICommandHooks)
 class UvHooks:
     """Build hooks to setup UV and export a requirements.txt for building
 
@@ -98,39 +98,39 @@ class HlsViStack(Stack):
         super().__init__(scope, stack_id, **kwargs)
 
         # Apply IAM permission boundary to entire stack
-        boundary = aws_iam.ManagedPolicy.from_managed_policy_arn(
+        boundary = iam.ManagedPolicy.from_managed_policy_arn(
             self,
             "PermissionBoundary",
             settings.MCP_IAM_PERMISSION_BOUNDARY_ARN,
         )
-        aws_iam.PermissionsBoundary.of(self).apply(boundary)
+        iam.PermissionsBoundary.of(self).apply(boundary)
 
         # ----------------------------------------------------------------------
         # Networking
         # ----------------------------------------------------------------------
-        self.vpc = aws_ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
+        self.vpc = ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
 
         # ----------------------------------------------------------------------
         # Buckets
         # ----------------------------------------------------------------------
-        self.lpdaac_protected_bucket = aws_s3.Bucket.from_bucket_name(
+        self.lpdaac_protected_bucket = s3.Bucket.from_bucket_name(
             self,
             "LpdaacProtectedBucket",
             bucket_name=settings.LPDAAC_PROTECTED_BUCKET_NAME,
         )
-        self.lpdaac_public_bucket = aws_s3.Bucket.from_bucket_name(
+        self.lpdaac_public_bucket = s3.Bucket.from_bucket_name(
             self,
             "LpdaacPublicBucket",
             bucket_name=settings.LPDAAC_PUBLIC_BUCKET_NAME,
         )
 
-        self.output_bucket = aws_s3.Bucket.from_bucket_name(
+        self.output_bucket = s3.Bucket.from_bucket_name(
             self,
             "OutputBucket",
             bucket_name=settings.OUTPUT_BUCKET_NAME,
         )
 
-        self.processing_bucket = aws_s3.Bucket(
+        self.processing_bucket = s3.Bucket(
             self,
             "ProcessingBucket",
             bucket_name=settings.PROCESSING_BUCKET_NAME,
@@ -139,22 +139,22 @@ class HlsViStack(Stack):
                 # Setting expired_object_delete_marker cannot be done within a
                 # lifecycle rule that also specifies expiration, expiration_date, or
                 # tag_filters.
-                aws_s3.LifecycleRule(expired_object_delete_marker=True),
-                aws_s3.LifecycleRule(
+                s3.LifecycleRule(expired_object_delete_marker=True),
+                s3.LifecycleRule(
                     abort_incomplete_multipart_upload_after=Duration.days(1),
                     noncurrent_version_expiration=Duration.days(1),
                 ),
             ],
-            encryption=aws_s3.BucketEncryption.S3_MANAGED,
+            encryption=s3.BucketEncryption.S3_MANAGED,
         )
 
         bucket_envvars = {
             "OUTPUT_BUCKET": settings.OUTPUT_BUCKET_NAME,
         }
 
-        self.debug_bucket: aws_s3.IBucket | None
+        self.debug_bucket: s3.IBucket | None
         if settings.DEBUG_BUCKET_NAME:
-            self.debug_bucket = aws_s3.Bucket.from_bucket_name(
+            self.debug_bucket = s3.Bucket.from_bucket_name(
                 self,
                 "DebugBucket",
                 bucket_name=settings.DEBUG_BUCKET_NAME,
@@ -166,50 +166,75 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # S3 processing bucket inventory to track our logs
         # ----------------------------------------------------------------------
+        inventory_id = "granule_processing_logs"
         self.processing_bucket.add_inventory(
             enabled=True,
-            destination=aws_s3.InventoryDestination(
-                bucket=aws_s3.Bucket.from_bucket_name(
+            destination=s3.InventoryDestination(
+                bucket=s3.Bucket.from_bucket_name(
                     self, "ProcessingBucketRef", settings.PROCESSING_BUCKET_NAME
                 ),
                 prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX,
             ),
-            inventory_id="granule_processing_logs",
-            format=aws_s3.InventoryFormat.PARQUET,
-            frequency=aws_s3.InventoryFrequency.DAILY,
+            inventory_id=inventory_id,
+            format=s3.InventoryFormat.PARQUET,
+            frequency=s3.InventoryFrequency.DAILY,
             objects_prefix=settings.PROCESSING_BUCKET_LOG_PREFIX,
             optional_fields=["LastModifiedDate"],
+        )
+        self.processing_bucket.add_lifecycle_rule(
+            prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX,
+            expiration=Duration.days(14),
         )
 
         # S3 service also needs permissions to push to the bucket
         self.processing_bucket.add_to_resource_policy(
-            aws_iam.PolicyStatement(
+            iam.PolicyStatement(
                 actions=[
                     "s3:PutObject",
                 ],
                 resources=[
                     self.processing_bucket.arn_for_objects(
-                        f"{settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX}/*"
+                        f"{settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX}*"
                     ),
                 ],
                 principals=[
-                    aws_iam.ServicePrincipal("s3.amazonaws.com"),
+                    iam.ServicePrincipal("s3.amazonaws.com"),
                 ],
-                effect=aws_iam.Effect.ALLOW,
+                effect=iam.Effect.ALLOW,
             )
+        )
+
+        logs_s3_inventory_location_s3path = "/".join(
+            [
+                f"s3://{settings.PROCESSING_BUCKET_NAME}",
+                settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX.rstrip("/"),
+                settings.PROCESSING_BUCKET_NAME,
+                inventory_id,
+                "hive",
+            ]
+        )
+
+        self.athena_logs_database = AthenaLogsDatabase(
+            self,
+            "AthenaLogsDatabase",
+            database_name=settings.ATHENA_LOGS_DATABASE_NAME,
+            table_datetime_start=settings.ATHENA_LOGS_S3_INVENTORY_TABLE_START_DATETIME,
+            logs_s3_inventory_location_s3path=logs_s3_inventory_location_s3path,
+            logs_s3_inventory_table_name=settings.ATHENA_LOGS_S3_INVENTORY_TABLE_NAME,
+            granule_processing_events_view_name=settings.ATHENA_LOGS_GRANULE_PROCESSING_EVENTS_VIEW_NAME,
         )
 
         # ----------------------------------------------------------------------
         # Earthdata Login (EDL) S3 credential rotator
         # ----------------------------------------------------------------------
         # NB - this secret must be created by developer team
-        self.edl_user_pass_credentials = aws_secretsmanager.Secret.from_secret_name_v2(
+        self.edl_user_pass_credentials = secretsmanager.Secret.from_secret_name_v2(
             self,
             id="EdlUserPassCredentials",
             secret_name=f"hls-vi-historical-orchestration/{settings.STAGE}/edl-user-credentials",
         )
 
-        self.edl_s3_credentials = aws_secretsmanager.Secret(
+        self.edl_s3_credentials = secretsmanager.Secret(
             self,
             id="EdlS3Credentials",
             secret_name=f"hls-vi-historical-orchestration/{settings.STAGE}/edl-s3-credentials",
@@ -220,13 +245,13 @@ class HlsViStack(Stack):
         #   * ACCESS_KEY_ID
         #   * SECRET_ACCESS_KEY
         #   * SESSION_TOKEN
-        self.edl_credential_rotator = aws_lambda_python.PythonFunction(
+        self.edl_credential_rotator = lambda_python.PythonFunction(
             self,
             "EdlCredentialRotator",
             entry="src/edl_credential_rotator",
             index="handler.py",
             handler="handler",
-            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
@@ -237,16 +262,16 @@ class HlsViStack(Stack):
         self.edl_user_pass_credentials.grant_read(self.edl_credential_rotator)
         self.edl_s3_credentials.grant_write(self.edl_credential_rotator)
 
-        self.edl_credential_rotator_schedule = aws_events.Rule(
+        self.edl_credential_rotator_schedule = events.Rule(
             self,
             "EdlCredentialRotatorSchedule",
-            schedule=aws_events.Schedule.rate(
+            schedule=events.Schedule.rate(
                 Duration.minutes(30),
             ),
         )
         if settings.SCHEDULE_LPDAAC_CREDS_ROTATION:
             self.edl_credential_rotator_schedule.add_target(
-                aws_events_targets.LambdaFunction(
+                events_targets.LambdaFunction(
                     handler=self.edl_credential_rotator,
                 )
             )
@@ -259,6 +284,7 @@ class HlsViStack(Stack):
             "HLS-VI-Infra",
             vpc=self.vpc,
             max_vcpu=settings.BATCH_MAX_VCPU,
+            base_name=f"hls-vi-historical-orchestration-{settings.STAGE}",
         )
 
         # ----------------------------------------------------------------------
@@ -273,13 +299,13 @@ class HlsViStack(Stack):
             retry_attempts=settings.PROCESSING_JOB_RETRY_ATTEMPTS,
             log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
             secrets={
-                "LPDAAC_SECRET_ACCESS_KEY": aws_batch.Secret.from_secrets_manager(
+                "LPDAAC_SECRET_ACCESS_KEY": batch.Secret.from_secrets_manager(
                     self.edl_s3_credentials, "SECRET_ACCESS_KEY"
                 ),
-                "LPDAAC_ACCESS_KEY_ID": aws_batch.Secret.from_secrets_manager(
+                "LPDAAC_ACCESS_KEY_ID": batch.Secret.from_secrets_manager(
                     self.edl_s3_credentials, "ACCESS_KEY_ID"
                 ),
-                "LPDAAC_SESSION_TOKEN": aws_batch.Secret.from_secrets_manager(
+                "LPDAAC_SESSION_TOKEN": batch.Secret.from_secrets_manager(
                     self.edl_s3_credentials, "SESSION_TOKEN"
                 ),
             },
@@ -296,20 +322,20 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # One-off inventory conversion Lambda
         # ----------------------------------------------------------------------
-        self.inventory_converter_lambda = aws_lambda_python.PythonFunction(
+        self.inventory_converter_lambda = lambda_python.PythonFunction(
             self,
             "InventoryConverterHandler",
             entry="src/",
             index="inventory_converter/handler.py",
             handler="handler",
-            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             memory_size=1024,
             timeout=Duration.minutes(10),
             environment={
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
                 "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
             },
-            bundling=aws_lambda_python.BundlingOptions(
+            bundling=lambda_python.BundlingOptions(
                 command_hooks=UvHooks(groups=["arrow"]),
                 asset_excludes=LAMBDA_EXCLUDE,
                 volumes=UV_DOCKER_VOLUMES,
@@ -318,19 +344,19 @@ class HlsViStack(Stack):
         )
         self.processing_bucket.grant_read_write(
             self.inventory_converter_lambda,
-            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}/*",
+            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}*",
         )
 
         # ----------------------------------------------------------------------
         # Queue feeder
         # ----------------------------------------------------------------------
-        self.queue_feeder_lambda = aws_lambda_python.PythonFunction(
+        self.queue_feeder_lambda = lambda_python.PythonFunction(
             self,
             "QueueFeederHandler",
             entry="src/",
             index="queue_feeder/handler.py",
             handler="handler",
-            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             memory_size=512,
             timeout=Duration.minutes(10),
             reserved_concurrent_executions=1,
@@ -342,7 +368,7 @@ class HlsViStack(Stack):
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
                 **bucket_envvars,
             },
-            bundling=aws_lambda_python.BundlingOptions(
+            bundling=lambda_python.BundlingOptions(
                 command_hooks=UvHooks(groups=["arrow"]),
                 asset_excludes=LAMBDA_EXCLUDE,
                 volumes=UV_DOCKER_VOLUMES,
@@ -356,8 +382,8 @@ class HlsViStack(Stack):
         # Ref: AWS Batch IAM actions/resources/conditions
         # https://docs.aws.amazon.com/service-authorization/latest/reference/list_awsbatch.html
         self.queue_feeder_lambda.add_to_role_policy(
-            aws_iam.PolicyStatement(
-                effect=aws_iam.Effect.ALLOW,
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
                 resources=[
                     self.batch_infra.queue.job_queue_arn,
                     self.processing_job.job_def_arn_without_revision,
@@ -368,8 +394,8 @@ class HlsViStack(Stack):
             )
         )
         self.queue_feeder_lambda.add_to_role_policy(
-            aws_iam.PolicyStatement(
-                effect=aws_iam.Effect.ALLOW,
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
                 resources=["*"],
                 actions=[
                     "batch:ListJobs",
@@ -378,17 +404,17 @@ class HlsViStack(Stack):
         )
 
         # Schedule queue feeder
-        self.queue_feeder_schedule = aws_events.Rule(
+        self.queue_feeder_schedule = events.Rule(
             self,
             "QueueFeederSchedule",
-            schedule=aws_events.Schedule.rate(
+            schedule=events.Schedule.rate(
                 Duration.minutes(settings.FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES),
             ),
         )
         if settings.SCHEDULE_QUEUE_FEEDER:
             self.queue_feeder_schedule.add_target(
-                aws_events_targets.LambdaFunction(
-                    event=aws_events.RuleTargetInput.from_object(
+                events_targets.LambdaFunction(
+                    event=events.RuleTargetInput.from_object(
                         {
                             "granule_submit_count": settings.FEEDER_GRANULE_SUBMIT_COUNT,
                         }
@@ -402,21 +428,21 @@ class HlsViStack(Stack):
         # Job monitor & retry system
         # ----------------------------------------------------------------------
         # Queue for job failures we need to investigate (bugs, repeat errors, etc)
-        self.job_failure_dlq = aws_sqs.Queue(
+        self.job_failure_dlq = sqs.Queue(
             self,
             "JobRetryFailureDLQ",
             queue_name=settings.JOB_FAILURE_DLQ_NAME,
             retention_period=Duration.days(14),
             enforce_ssl=True,
-            encryption=aws_sqs.QueueEncryption.SQS_MANAGED,
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
         )
 
         # Queue for failed AWS Batch processing jobs we want to requeue
-        self.job_retry_queue = aws_sqs.Queue(
+        self.job_retry_queue = sqs.Queue(
             self,
             "JobRetryFailureQueue",
             queue_name=settings.JOB_RETRY_QUEUE_NAME,
-            dead_letter_queue=aws_sqs.DeadLetterQueue(
+            dead_letter_queue=sqs.DeadLetterQueue(
                 queue=self.job_failure_dlq,
                 # Route to DLQ immediately if we can't process
                 max_receive_count=1,
@@ -424,16 +450,16 @@ class HlsViStack(Stack):
             retention_period=Duration.days(14),
             visibility_timeout=Duration.minutes(2),
             enforce_ssl=True,
-            encryption=aws_sqs.QueueEncryption.SQS_MANAGED,
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
         )
 
-        self.job_monitor_lambda = aws_lambda_python.PythonFunction(
+        self.job_monitor_lambda = lambda_python.PythonFunction(
             self,
             "JobMonitorHandler",
             entry="src/",
             index="job_monitor/handler.py",
             handler="handler",
-            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
@@ -446,7 +472,7 @@ class HlsViStack(Stack):
                     settings.PROCESSING_JOB_RETRY_ATTEMPTS
                 ),
             },
-            bundling=aws_lambda_python.BundlingOptions(
+            bundling=lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),
                 asset_excludes=LAMBDA_EXCLUDE,
                 volumes=UV_DOCKER_VOLUMES,
@@ -461,10 +487,10 @@ class HlsViStack(Stack):
 
         # Events from AWS Batch "job state change events" in our processing queue
         # Ref: https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html
-        self.processing_job_events_rule = aws_events.Rule(
+        self.processing_job_events_rule = events.Rule(
             self,
             "ProcessingJobEventsRule",
-            event_pattern=aws_events.EventPattern(
+            event_pattern=events.EventPattern(
                 source=["aws.batch"],
                 detail={
                     # only retry jobs from our queue and job definition that failed
@@ -479,7 +505,7 @@ class HlsViStack(Stack):
                 },
             ),
             targets=[
-                aws_events_targets.LambdaFunction(
+                events_targets.LambdaFunction(
                     handler=self.job_monitor_lambda,
                     retry_attempts=3,
                 )
@@ -489,13 +515,13 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # Requeuer
         # ----------------------------------------------------------------------
-        self.job_requeuer_lambda = aws_lambda_python.PythonFunction(
+        self.job_requeuer_lambda = lambda_python.PythonFunction(
             self,
             "JobRequeuerHandler",
             entry="src/",
             index="job_requeuer/handler.py",
             handler="handler",
-            runtime=aws_lambda.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             memory_size=256,
             timeout=Duration.minutes(1),
             environment={
@@ -503,7 +529,7 @@ class HlsViStack(Stack):
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
                 **bucket_envvars,
             },
-            bundling=aws_lambda_python.BundlingOptions(
+            bundling=lambda_python.BundlingOptions(
                 command_hooks=UvHooks(),
                 asset_excludes=LAMBDA_EXCLUDE,
                 volumes=UV_DOCKER_VOLUMES,
@@ -513,9 +539,9 @@ class HlsViStack(Stack):
         self.processing_bucket.grant_read_write(
             self.job_requeuer_lambda, objects_key_pattern="logs/*"
         )
-        self.queue_feeder_lambda.add_to_role_policy(
-            aws_iam.PolicyStatement(
-                effect=aws_iam.Effect.ALLOW,
+        self.job_requeuer_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
                 resources=[
                     self.batch_infra.queue.job_queue_arn,
                     self.processing_job.job_def_arn_without_revision,
