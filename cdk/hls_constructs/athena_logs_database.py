@@ -48,12 +48,13 @@ class AthenaLogsDatabase(Construct):
             self,
             "Database",
             catalog_id=Aws.ACCOUNT_ID,
-            database_input={
-                "name": database_name,
-            },
+            database_name=database_name,
+            database_input=aws_glue.CfnDatabase.DatabaseInputProperty(
+                name=database_name,
+                description="Database for HLS-VI Historical Orchestration task logging.",
+            ),
         )
         self.s3_inventory_table = self._create_s3_inventory_table(
-            database_name=database_name,
             database=self.database,
             table_datetime_start=table_datetime_start,
             logs_s3_inventory_table_name=logs_s3_inventory_table_name,
@@ -61,7 +62,7 @@ class AthenaLogsDatabase(Construct):
         )
         self.granule_processing_events_view = (
             self._create_granule_processing_events_view(
-                database_name=database_name,
+                database=self.database,
                 logs_s3_inventory_table_name=logs_s3_inventory_table_name,
                 logs_s3_inventory_table=self.s3_inventory_table,
                 granule_processing_events_view_name=granule_processing_events_view_name,
@@ -71,14 +72,14 @@ class AthenaLogsDatabase(Construct):
     def _create_s3_inventory_table(
         self,
         *,
-        database_name: str,
         database: aws_glue.CfnDatabase,
         table_datetime_start: dt.datetime,
         logs_s3_inventory_table_name: str,
         logs_s3_inventory_location_s3path: str,
     ) -> aws_glue.CfnTable:
         """Create a Glue table for the S3 inventory reports"""
-        table_datetime_start_str = table_datetime_start.strftime("%Y-%m-%d-%H-%M")
+        database_name = database.database_name
+        assert database_name is not None
 
         table = aws_glue.CfnTable(
             self,
@@ -89,7 +90,7 @@ class AthenaLogsDatabase(Construct):
                 name=logs_s3_inventory_table_name,
                 table_type="EXTERNAL_TABLE",
                 parameters={
-                    "projection.dt.range": f"{table_datetime_start_str},NOW",
+                    "projection.dt.range": f"{table_datetime_start:%Y-%m-%d-%H-%M},NOW",
                     "projection.dt.interval.unit": "HOURS",
                     "EXTERNAL": "TRUE",
                     "projection.dt.type": "date",
@@ -150,18 +151,21 @@ class AthenaLogsDatabase(Construct):
             ),
         )
         table.apply_removal_policy(RemovalPolicy.DESTROY)
-        table.add_depends_on(self.database)
+        table.add_dependency(database)
         return table
 
     def _create_granule_processing_events_view(
         self,
         *,
-        database_name: str,
+        database: str,
         logs_s3_inventory_table_name: str,
         logs_s3_inventory_table: aws_glue.CfnTable,
         granule_processing_events_view_name: str,
     ) -> aws_glue.CfnTable:
         """Create a view for granule processing events logs"""
+        database_name = database.database_name
+        assert database_name is not None
+
         sql = f"""WITH latest AS (
             SELECT *
             FROM {logs_s3_inventory_table_name}
@@ -259,5 +263,5 @@ class AthenaLogsDatabase(Construct):
             ),
         )
         view.apply_removal_policy(RemovalPolicy.DESTROY)
-        view.add_depends_on(logs_s3_inventory_table)
+        view.add_dependency(logs_s3_inventory_table)
         return view

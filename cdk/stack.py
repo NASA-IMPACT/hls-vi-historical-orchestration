@@ -213,6 +213,7 @@ class HlsViStack(Stack):
                 "hive",
             ]
         )
+
         self.athena_logs_database = AthenaLogsDatabase(
             self,
             "AthenaLogsDatabase",
