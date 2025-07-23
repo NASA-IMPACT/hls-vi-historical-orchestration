@@ -62,6 +62,11 @@ class JobDetails:
         """
         return self.detail.get("container", {}).get("exitCode")
 
+    @property
+    def status_reason(self) -> str:
+        """Get the job status reason"""
+        return self.detail.get("statusReason", "")
+
     def get_job_info(self) -> JobDetailTypeDef:
         """Return verbose details about this job"""
         return self.detail
@@ -70,10 +75,11 @@ class JobDetails:
         """Return the outcome of this job"""
         if self.exit_code == 0:
             return JobOutcome.SUCCESS
-        elif self.exit_code is None:
+        # Jobs that are killed by SPOT interruptions won't have an error code,
+        # but neither will jobs that are cancelled or terminated.
+        if self.exit_code is None and self.status_reason.startswith("Host EC2"):
             return JobOutcome.FAILURE_RETRYABLE
-        else:
-            return JobOutcome.FAILURE_NONRETRYABLE
+        return JobOutcome.FAILURE_NONRETRYABLE
 
     def get_granule_event(self) -> GranuleProcessingEvent:
         """Return the granule processing event details for this job"""
