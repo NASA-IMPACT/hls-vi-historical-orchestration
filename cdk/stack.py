@@ -231,7 +231,7 @@ class HlsViStack(Stack):
         self.edl_user_pass_credentials = secretsmanager.Secret.from_secret_name_v2(
             self,
             id="EdlUserPassCredentials",
-            secret_name=f"hls-vi-historical-orchestration/{settings.STAGE}/edl-user-credentials",
+            secret_name=settings.EDL_USER_PASS_CREDENTIALS_SECRET_NAME,
         )
 
         self.edl_s3_credentials = secretsmanager.Secret(
@@ -290,6 +290,23 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # HLS-VI processing compute job
         # ----------------------------------------------------------------------
+        if settings.SCHEDULE_LPDAAC_CREDS_ROTATION:
+            secrets = (
+                {
+                    "LPDAAC_SECRET_ACCESS_KEY": batch.Secret.from_secrets_manager(
+                        self.edl_s3_credentials, "SECRET_ACCESS_KEY"
+                    ),
+                    "LPDAAC_ACCESS_KEY_ID": batch.Secret.from_secrets_manager(
+                        self.edl_s3_credentials, "ACCESS_KEY_ID"
+                    ),
+                    "LPDAAC_SESSION_TOKEN": batch.Secret.from_secrets_manager(
+                        self.edl_s3_credentials, "SESSION_TOKEN"
+                    ),
+                },
+            )
+        else:
+            secrets = {}
+
         self.processing_job = BatchJob(
             self,
             "HLS-VI-Processing",
@@ -298,17 +315,7 @@ class HlsViStack(Stack):
             memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
             retry_attempts=settings.PROCESSING_JOB_RETRY_ATTEMPTS,
             log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
-            secrets={
-                "LPDAAC_SECRET_ACCESS_KEY": batch.Secret.from_secrets_manager(
-                    self.edl_s3_credentials, "SECRET_ACCESS_KEY"
-                ),
-                "LPDAAC_ACCESS_KEY_ID": batch.Secret.from_secrets_manager(
-                    self.edl_s3_credentials, "ACCESS_KEY_ID"
-                ),
-                "LPDAAC_SESSION_TOKEN": batch.Secret.from_secrets_manager(
-                    self.edl_s3_credentials, "SESSION_TOKEN"
-                ),
-            },
+            secrets=secrets,
             stage=settings.STAGE,
         )
         self.processing_bucket.grant_read_write(self.processing_job.role)
