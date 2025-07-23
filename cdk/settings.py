@@ -69,7 +69,7 @@ class StackSettings(BaseSettings):
     PROCESSING_CONTAINER_ECR_URI: str
     # Job vCPU and memory limits
     PROCESSING_JOB_VCPU: int = 1
-    PROCESSING_JOB_MEMORY_MB: int = 4_000
+    PROCESSING_JOB_MEMORY_MB: int = 2_000
     # Custom log group (otherwise they'll land in the catch-all AWS Batch log group)
     PROCESSING_LOG_GROUP_NAME: str
     # Number of internal AWS Batch job retries
