@@ -192,7 +192,7 @@ class GranuleLoggerService:
             success_path = self._path_for_event_outcome(
                 event, ProcessingOutcome.SUCCESS
             )
-            failure_path.copy_to(success_path, bsm=self.bsm)
+            failure_path.copy_to(success_path, bsm=self.bsm, overwrite=True)
             failure_path.delete(bsm=self.bsm)
 
     def put_event_details(self, details: JobDetails) -> None:
