@@ -166,39 +166,30 @@ class AthenaLogsDatabase(Construct):
         database_name = database.database_name
         assert database_name is not None
 
-        sql = f"""WITH latest AS (
-            SELECT *
-            FROM {logs_s3_inventory_table_name}
-            WHERE
-                dt = (SELECT min(dt) FROM logs_s3_inventories)
-                AND is_latest
-                AND NOT is_delete_marker
-        ),
-        nested AS (
-            SELECT
-                split(key, '/') as splits,
-                last_modified_date
-            FROM latest
-        )
+        sql = rf"""
         SELECT
-            try(splits[2]) AS status,
-            try(splits[3]) AS sensor,
-            try(date_parse(splits[4], '%Y-%m-%d')) AS acquisition_date,
-            try(splits[5]) AS granule_id,
-            try(cast(split_part(splits[6], '.', 2) AS INT)) AS attempt,
+            regexp_extract(key, 'outcome=(\w+)', 1) as outcome,
+            regexp_extract(key, 'sensor=(\w+)', 1) as platform,
+            date_parse(regexp_extract(key, 'acquisition_date=([\d-]+)', 1), '%Y-%m-%d') AS acquisition_date,
+            regexp_extract(key, 'granule_id=([\w\.]+)', 1) AS granule_id,
+            cast(regexp_extract(key, 'attempt=([0-9]+)', 1) AS INT) AS attempt,
             last_modified_date
-        FROM nested
+        FROM {logs_s3_inventory_table_name}
+        WHERE
+            dt = (SELECT min(dt) FROM {logs_s3_inventory_table_name})
+            AND is_latest
+            AND NOT is_delete_marker
         """
 
         columns = [
             glue.CfnTable.ColumnProperty(
-                name="status",
-                comment="The processing event status (failed, success).",
+                name="outcome",
+                comment="The processing event outcome (failed, success).",
                 type="String",
             ),
             glue.CfnTable.ColumnProperty(
-                name="sensor",
-                comment="The sensor (L30, S30).",
+                name="platform",
+                comment="The platform (L30, S30).",
                 type="String",
             ),
             glue.CfnTable.ColumnProperty(
