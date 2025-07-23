@@ -315,6 +315,9 @@ class HlsViStack(Stack):
             memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
             retry_attempts=settings.PROCESSING_JOB_RETRY_ATTEMPTS,
             log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
+            environment={
+                "PYTHONUNBUFFERED": "TRUE",
+            },
             secrets=secrets,
             stage=settings.STAGE,
         )
