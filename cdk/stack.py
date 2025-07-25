@@ -173,7 +173,7 @@ class HlsViStack(Stack):
                 bucket=s3.Bucket.from_bucket_name(
                     self, "ProcessingBucketRef", settings.PROCESSING_BUCKET_NAME
                 ),
-                prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX,
+                prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX.rstrip("/"),
             ),
             inventory_id=inventory_id,
             format=s3.InventoryFormat.PARQUET,
