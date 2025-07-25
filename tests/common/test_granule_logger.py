@@ -24,10 +24,10 @@ class TestGranuleLoggerService:
 
     def test_attempt_log_regex(self) -> None:
         """Sanity check log name regex"""
-        assert GranuleLoggerService.attempt_log_regex.match("attempt.0.json")
-        assert GranuleLoggerService.attempt_log_regex.match("attempt.10.json")
-        assert not GranuleLoggerService.attempt_log_regex.match("attempt.json")
-        assert not GranuleLoggerService.attempt_log_regex.match("attempt.42.log")
+        assert GranuleLoggerService.attempt_log_regex.match("attempt=0.json")
+        assert GranuleLoggerService.attempt_log_regex.match("attempt=10.json")
+        assert not GranuleLoggerService.attempt_log_regex.match("attempt=json")
+        assert not GranuleLoggerService.attempt_log_regex.match("attempt=42.log")
 
     @pytest.mark.parametrize("outcome", list(ProcessingOutcome))
     def test_path_for_event_outcome(

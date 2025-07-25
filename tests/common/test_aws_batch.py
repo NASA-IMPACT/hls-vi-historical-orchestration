@@ -1,4 +1,5 @@
 import datetime as dt
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Iterator
 from unittest.mock import MagicMock, patch
@@ -50,10 +51,19 @@ class TestJobDetail:
         outcome = JobDetails(detail).get_job_outcome()
         assert outcome == JobOutcome.SUCCESS
 
-        detail = job_detail_failed_error.copy()
+        # SPOT interruption
+        detail = deepcopy(job_detail_failed_error)
         del detail["container"]["exitCode"]
+        detail["statusReason"] = "Host EC2 (instance i-01225b700440f4809) terminated."
         outcome = JobDetails(detail).get_job_outcome()
         assert outcome == JobOutcome.FAILURE_RETRYABLE
+
+        # Cancelled job
+        detail = job_detail_failed_error.copy()
+        del detail["container"]["exitCode"]
+        detail["statusReason"] = "Manually cancelling this job"
+        outcome = JobDetails(detail).get_job_outcome()
+        assert outcome == JobOutcome.FAILURE_NONRETRYABLE
 
     def test_get_granule_event_details(
         self, job_detail_failed_error: JobDetailTypeDef
