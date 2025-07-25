@@ -296,19 +296,17 @@ class HlsViStack(Stack):
         # HLS-VI processing compute job
         # ----------------------------------------------------------------------
         if settings.SCHEDULE_LPDAAC_CREDS_ROTATION:
-            secrets = (
-                {
-                    "LPDAAC_SECRET_ACCESS_KEY": batch.Secret.from_secrets_manager(
-                        self.edl_s3_credentials, "SECRET_ACCESS_KEY"
-                    ),
-                    "LPDAAC_ACCESS_KEY_ID": batch.Secret.from_secrets_manager(
-                        self.edl_s3_credentials, "ACCESS_KEY_ID"
-                    ),
-                    "LPDAAC_SESSION_TOKEN": batch.Secret.from_secrets_manager(
-                        self.edl_s3_credentials, "SESSION_TOKEN"
-                    ),
-                },
-            )
+            secrets = {
+                "LPDAAC_SECRET_ACCESS_KEY": batch.Secret.from_secrets_manager(
+                    self.edl_s3_credentials, "SECRET_ACCESS_KEY"
+                ),
+                "LPDAAC_ACCESS_KEY_ID": batch.Secret.from_secrets_manager(
+                    self.edl_s3_credentials, "ACCESS_KEY_ID"
+                ),
+                "LPDAAC_SESSION_TOKEN": batch.Secret.from_secrets_manager(
+                    self.edl_s3_credentials, "SESSION_TOKEN"
+                ),
+            }
         else:
             secrets = {}
 
