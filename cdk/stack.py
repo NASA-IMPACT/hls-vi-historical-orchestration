@@ -268,13 +268,13 @@ class HlsViStack(Stack):
             schedule=events.Schedule.rate(
                 Duration.minutes(30),
             ),
+            enabled=settings.SCHEDULE_LPDAAC_CREDS_ROTATION,
         )
-        if settings.SCHEDULE_LPDAAC_CREDS_ROTATION:
-            self.edl_credential_rotator_schedule.add_target(
-                events_targets.LambdaFunction(
-                    handler=self.edl_credential_rotator,
-                )
+        self.edl_credential_rotator_schedule.add_target(
+            events_targets.LambdaFunction(
+                handler=self.edl_credential_rotator,
             )
+        )
 
         # ----------------------------------------------------------------------
         # AWS Batch infrastructure
