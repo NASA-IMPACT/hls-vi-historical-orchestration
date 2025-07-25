@@ -169,14 +169,14 @@ class AthenaLogsDatabase(Construct):
         sql = rf"""
         SELECT
             regexp_extract(key, 'outcome=(\w+)', 1) as outcome,
-            regexp_extract(key, 'sensor=(\w+)', 1) as platform,
+            regexp_extract(key, 'platform=(\w+)', 1) as platform,
             date_parse(regexp_extract(key, 'acquisition_date=([\d-]+)', 1), '%Y-%m-%d') AS acquisition_date,
             regexp_extract(key, 'granule_id=([\w\.]+)', 1) AS granule_id,
             cast(regexp_extract(key, 'attempt=([0-9]+)', 1) AS INT) AS attempt,
             last_modified_date
         FROM {logs_s3_inventory_table_name}
         WHERE
-            dt = (SELECT min(dt) FROM {logs_s3_inventory_table_name})
+            dt = (SELECT max(dt) FROM {logs_s3_inventory_table_name})
             AND is_latest
             AND NOT is_delete_marker
         """
