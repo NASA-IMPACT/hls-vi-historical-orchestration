@@ -226,6 +226,11 @@ class HlsViStack(Stack):
 
         # ----------------------------------------------------------------------
         # Earthdata Login (EDL) S3 credential rotator
+        #
+        # This was originally required before the IAM roles for this pipeline were
+        # added to the LPDAAC bucket policies. We keep it in the stack in case
+        # those permissions are removed because that happened in the past.
+        #
         # ----------------------------------------------------------------------
         # NB - this secret must be created by developer team
         self.edl_user_pass_credentials = secretsmanager.Secret.from_secret_name_v2(
