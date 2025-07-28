@@ -72,20 +72,20 @@ class GranuleLoggerService:
     by using S3 as a store for logs and outcome breadcrumbs. In order to
     predictably list or search for information about our granule processing
     system this organizes log information into a set of prefixes based on
-    information,
+    information:
 
     ```
-    ./logs/{status}/{YYYY-MM-DD}/{GRANULE_ID}/example
+    ./logs/outcome={outcome}/acquisition_date={YYYY-MM-DD}/granule_id={GRANULE_ID}/
     ```
 
-    This organizes logs by status ("success" or "failure") first as we anticipate
+    This organizes logs by outcome ("success" or "failure") first as we anticipate
     wanting to search and analyze jobs that have "failed" more than the successes.
 
-    Within each prefix job attempts are organized by the attempt. For example,
+    Within each prefix job attempts are organized by the attempt. For example:
 
     ```
-    ./logs/failure/{YYYY-MM-DD}/{GRANULE_ID}/attempt.1.json
-    ./logs/failure/{YYYY-MM-DD}/{GRANULE_ID}/attempt.2.json
+    ./logs/outcome=failure/acquisition_date={YYYY-MM-DD}/granule_id={GRANULE_ID}/attempt=1.json
+    ./logs/outcome=success/acquisition_date={YYYY-MM-DD}/granule_id={GRANULE_ID}/attempt=2.json
     ```
 
     When a successful attempt has been logged, any previous attempts that had failures
@@ -97,6 +97,7 @@ class GranuleLoggerService:
     logs_prefix: str
     bsm: BotoSesManager = field(default_factory=BotoSesManager)
 
+    # mapping of ProcessingOutcome to S3 path component
     outcome_to_prefix: ClassVar[dict[ProcessingOutcome, str]] = {
         ProcessingOutcome.SUCCESS: "success",
         ProcessingOutcome.FAILURE: "failure",
@@ -104,9 +105,21 @@ class GranuleLoggerService:
     prefix_to_outcome: ClassVar[dict[str, ProcessingOutcome]] = {
         value: key for key, value in outcome_to_prefix.items()
     }
-    attempt_log_regex: ClassVar[re.Pattern[str]] = re.compile(
-        r"^attempt\.[0-9]+\.json$"
+
+    # regex to parse the log object into components
+    log_path_regex: ClassVar[re.Pattern[str]] = re.compile(
+        "/".join(
+            [
+                r"outcome=(?P<outcome>\w+)",
+                r"platform=(?P<platform>\w+)",
+                r"acquisition_date=(?P<acquisition_date>[\d-]+)",
+                r"granule_id=(?P<granule_id>[\w\.]+)",
+                r"attempt=(?P<attempt>[0-9]+)\.json$",
+            ]
+        )
     )
+    # regex to match on attempt object name
+    attempt_log_regex: ClassVar[re.Pattern[str]] = re.compile(r"^attempt=[0-9]+\.json$")
 
     def _prefix_for_granule_id_outcome(
         self, granule_id: GranuleId, outcome: ProcessingOutcome
@@ -116,10 +129,10 @@ class GranuleLoggerService:
         return S3Path(
             self.bucket,
             self.logs_prefix.rstrip("/"),
-            self.outcome_to_prefix[outcome],
-            granule_id.platform,
-            date,
-            str(granule_id),
+            f"outcome={self.outcome_to_prefix[outcome]}",
+            f"platform={granule_id.platform}",
+            f"acquisition_date={date}",
+            f"granule_id={str(granule_id)}",
         )
 
     def _path_for_event_outcome(
@@ -129,7 +142,7 @@ class GranuleLoggerService:
     ) -> S3Path:
         granule_id = GranuleId.from_str(event.granule_id)
         prefix = self._prefix_for_granule_id_outcome(granule_id, outcome)
-        return S3Path(prefix, f"attempt.{event.attempt}.json")
+        return S3Path(prefix, f"attempt={event.attempt}.json")
 
     def _path_to_event_outcome(
         self,
@@ -139,13 +152,21 @@ class GranuleLoggerService:
 
         This is the inverse of the `_path_for_event_outcome`
         """
-        prefix = log_artifact.key.split(self.logs_prefix)[1].lstrip("/").split("/")[0]
-        outcome = self.prefix_to_outcome[prefix]
+        path = log_artifact.key.removeprefix(self.logs_prefix).lstrip("/")
+        match = self.log_path_regex.match(path)
+        if not match:
+            raise ValueError(
+                f"Cannot parse {log_artifact.uri} into a GranuleProcessingEvent"
+            )
 
-        granule_id, log_name = log_artifact.key.split("/")[-2:]
-        attempt = int(log_name.split(".")[1])
+        granule_id = match.group("granule_id")
+        attempt = int(match.group("attempt"))
+        outcome = self.prefix_to_outcome[match.group("outcome")]
 
-        return GranuleProcessingEvent(granule_id, attempt), outcome
+        return (
+            GranuleProcessingEvent(granule_id, attempt),
+            outcome,
+        )
 
     def _filter_attempt_log(self, path: S3Path) -> bool:
         return bool(self.attempt_log_regex.match(path.basename))
@@ -171,7 +192,7 @@ class GranuleLoggerService:
             success_path = self._path_for_event_outcome(
                 event, ProcessingOutcome.SUCCESS
             )
-            failure_path.copy_to(success_path, bsm=self.bsm)
+            failure_path.copy_to(success_path, bsm=self.bsm, overwrite=True)
             failure_path.delete(bsm=self.bsm)
 
     def put_event_details(self, details: JobDetails) -> None:

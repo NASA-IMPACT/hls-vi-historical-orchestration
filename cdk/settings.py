@@ -24,9 +24,19 @@ class StackSettings(BaseSettings):
 
     VPC_ID: str
 
-    # ----- Scheduling
+    # ----- Credentials for LPDAAC bucket
+    # By default we use our own IAM role that has read permissions on LPDAAC side
+    # in their bucket policies. If this has been removed or has issues, we can fall back
+    # to using the DAAC `/s3credentials` endpoint to provide temporary credentials.
+    #
+    # We expect this credential to exist in SecretsManager already!
+    EDL_USER_PASS_CREDENTIALS_SECRET_NAME: str
+
+    # Whether to enable use and scheduling of credential rotation.
+    SCHEDULE_LPDAAC_CREDS_ROTATION: bool = False
+
+    # ----- Queue feeder
     SCHEDULE_QUEUE_FEEDER: bool = True
-    SCHEDULE_LPDAAC_CREDS_ROTATION: bool = True
 
     # ----- Buckets
     # Job processing bucket for state (inventories, failures, etc)
@@ -59,7 +69,7 @@ class StackSettings(BaseSettings):
     PROCESSING_CONTAINER_ECR_URI: str
     # Job vCPU and memory limits
     PROCESSING_JOB_VCPU: int = 1
-    PROCESSING_JOB_MEMORY_MB: int = 4_000
+    PROCESSING_JOB_MEMORY_MB: int = 2_000
     # Custom log group (otherwise they'll land in the catch-all AWS Batch log group)
     PROCESSING_LOG_GROUP_NAME: str
     # Number of internal AWS Batch job retries

@@ -173,7 +173,7 @@ class HlsViStack(Stack):
                 bucket=s3.Bucket.from_bucket_name(
                     self, "ProcessingBucketRef", settings.PROCESSING_BUCKET_NAME
                 ),
-                prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX,
+                prefix=settings.PROCESSING_BUCKET_LOGS_INVENTORY_PREFIX.rstrip("/"),
             ),
             inventory_id=inventory_id,
             format=s3.InventoryFormat.PARQUET,
@@ -226,12 +226,17 @@ class HlsViStack(Stack):
 
         # ----------------------------------------------------------------------
         # Earthdata Login (EDL) S3 credential rotator
+        #
+        # This was originally required before the IAM roles for this pipeline were
+        # added to the LPDAAC bucket policies. We keep it in the stack in case
+        # those permissions are removed because that happened in the past.
+        #
         # ----------------------------------------------------------------------
         # NB - this secret must be created by developer team
         self.edl_user_pass_credentials = secretsmanager.Secret.from_secret_name_v2(
             self,
             id="EdlUserPassCredentials",
-            secret_name=f"hls-vi-historical-orchestration/{settings.STAGE}/edl-user-credentials",
+            secret_name=settings.EDL_USER_PASS_CREDENTIALS_SECRET_NAME,
         )
 
         self.edl_s3_credentials = secretsmanager.Secret(
@@ -268,13 +273,13 @@ class HlsViStack(Stack):
             schedule=events.Schedule.rate(
                 Duration.minutes(30),
             ),
+            enabled=settings.SCHEDULE_LPDAAC_CREDS_ROTATION,
         )
-        if settings.SCHEDULE_LPDAAC_CREDS_ROTATION:
-            self.edl_credential_rotator_schedule.add_target(
-                events_targets.LambdaFunction(
-                    handler=self.edl_credential_rotator,
-                )
+        self.edl_credential_rotator_schedule.add_target(
+            events_targets.LambdaFunction(
+                handler=self.edl_credential_rotator,
             )
+        )
 
         # ----------------------------------------------------------------------
         # AWS Batch infrastructure
@@ -290,15 +295,8 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         # HLS-VI processing compute job
         # ----------------------------------------------------------------------
-        self.processing_job = BatchJob(
-            self,
-            "HLS-VI-Processing",
-            container_ecr_uri=settings.PROCESSING_CONTAINER_ECR_URI,
-            vcpu=settings.PROCESSING_JOB_VCPU,
-            memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
-            retry_attempts=settings.PROCESSING_JOB_RETRY_ATTEMPTS,
-            log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
-            secrets={
+        if settings.SCHEDULE_LPDAAC_CREDS_ROTATION:
+            secrets = {
                 "LPDAAC_SECRET_ACCESS_KEY": batch.Secret.from_secrets_manager(
                     self.edl_s3_credentials, "SECRET_ACCESS_KEY"
                 ),
@@ -308,7 +306,22 @@ class HlsViStack(Stack):
                 "LPDAAC_SESSION_TOKEN": batch.Secret.from_secrets_manager(
                     self.edl_s3_credentials, "SESSION_TOKEN"
                 ),
+            }
+        else:
+            secrets = {}
+
+        self.processing_job = BatchJob(
+            self,
+            "HLS-VI-Processing",
+            container_ecr_uri=settings.PROCESSING_CONTAINER_ECR_URI,
+            vcpu=settings.PROCESSING_JOB_VCPU,
+            memory_mb=settings.PROCESSING_JOB_MEMORY_MB,
+            retry_attempts=settings.PROCESSING_JOB_RETRY_ATTEMPTS,
+            log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
+            environment={
+                "PYTHONUNBUFFERED": "TRUE",
             },
+            secrets=secrets,
             stage=settings.STAGE,
         )
         self.processing_bucket.grant_read_write(self.processing_job.role)

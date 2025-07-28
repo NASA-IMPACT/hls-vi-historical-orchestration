@@ -48,17 +48,21 @@ def queue_feeder(
         tracking, granule_submit_count
     )
 
-    for i, granule_id in enumerate(granule_ids):
+    i = 0
+    for i, granule_id in enumerate(granule_ids, 1):
         processing_event = GranuleProcessingEvent(granule_id=granule_id, attempt=0)
         batch.submit_job(
             event=processing_event,
             output_bucket=output_bucket,
         )
+        if i % 100 == 0:
+            logger.info(f"Submitted {i} granule processing events")
 
     # Don't increment status when running in debug mode
     if not debug:
         tracker.update_tracking(updated_tracking)
 
+    logger.info(f"Completed submitting {i} granule processing events")
     return updated_tracking.to_dict()
 
 
