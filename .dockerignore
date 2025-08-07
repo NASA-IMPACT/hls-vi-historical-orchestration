@@ -1,0 +1,6 @@
+.git/
+.github/
+cdk/
+cdk.out/
+scripts/
+tests/
