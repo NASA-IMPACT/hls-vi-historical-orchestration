@@ -75,9 +75,9 @@ class StackSettings(BaseSettings):
     # Number of internal AWS Batch job retries
     PROCESSING_JOB_RETRY_ATTEMPTS: int = 3
 
-    # TODO: increase instance types allowed
     # Cluster instance types
     BATCH_INSTANCE_TYPES: list[str] = [
+        "m6i.large",
         "m6i.xlarge",
         "m6i.2xlarge",
         "m6i.4xlarge",
