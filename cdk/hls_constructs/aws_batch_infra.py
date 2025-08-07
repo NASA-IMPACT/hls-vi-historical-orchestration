@@ -63,6 +63,7 @@ class BatchInfra(Construct):
             ),
             vpc=vpc,
             compute_environment_name=f"{base_name}-compute-environment",
+            terminate_on_update=False,
         )
 
         self.queue = batch.JobQueue(
