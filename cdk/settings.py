@@ -77,11 +77,13 @@ class StackSettings(BaseSettings):
 
     # Cluster instance classes
     BATCH_INSTANCE_CLASSES: list[str] = [
-        "STANDARD5",
-        "STANDARD5_AMD",
-        "STANDARD6_INTEL",
-        "STANDARD6_AMD",
+        "C4",
+        "C5",
+        "C5A",
+        "C6A",
+        "C6I",
     ]
+
     # Cluster scaling max
     BATCH_MAX_VCPU: int = 10
 
