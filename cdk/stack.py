@@ -288,7 +288,7 @@ class HlsViStack(Stack):
             self,
             "HLS-VI-Infra",
             vpc=self.vpc,
-            instance_types=settings.BATCH_INSTANCE_TYPES,
+            instance_classes=settings.BATCH_INSTANCE_CLASSES,
             max_vcpu=settings.BATCH_MAX_VCPU,
             base_name=f"hls-vi-historical-orchestration-{settings.STAGE}",
         )
