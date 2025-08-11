@@ -110,6 +110,16 @@ class HlsViStack(Stack):
         # ----------------------------------------------------------------------
         self.vpc = ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
 
+        # Use S3 VPC endpoint to accelerate within-region traffic.
+        # For now, only add to prod stack to avoid unnecessary duplicates.
+        # It'd be better to have this as part of our (MCP owned) networking stack
+        # in the long run.
+        if settings.STAGE == "prod":
+            self.vpc.add_gateway_endpoint(
+                "S3",
+                service=ec2.GatewayVpcEndpointAwsService.S3,
+            )
+
         # ----------------------------------------------------------------------
         # Buckets
         # ----------------------------------------------------------------------
