@@ -77,11 +77,8 @@ class StackSettings(BaseSettings):
 
     # Cluster instance classes
     BATCH_INSTANCE_CLASSES: list[str] = [
-        "C4",
-        "C5",
-        "C5A",
-        "C6A",
-        "C6I",
+        "C5N",
+        "C6IN",
     ]
 
     # Cluster scaling max
