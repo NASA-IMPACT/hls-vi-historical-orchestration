@@ -70,6 +70,7 @@ class StackSettings(BaseSettings):
     # Job vCPU and memory limits
     PROCESSING_JOB_VCPU: int = 1
     PROCESSING_JOB_MEMORY_MB: int = 2_000
+    PROCESSING_JOB_MAX_DOWNLOAD_THREADS: int = 4
     # Custom log group (otherwise they'll land in the catch-all AWS Batch log group)
     PROCESSING_LOG_GROUP_NAME: str
     # Number of internal AWS Batch job retries
@@ -77,8 +78,11 @@ class StackSettings(BaseSettings):
 
     # Cluster instance classes
     BATCH_INSTANCE_CLASSES: list[str] = [
-        "C5N",
-        "C6IN",
+        "C4",
+        "C5",
+        "C5A",
+        "C6A",
+        "C6I",
     ]
 
     # Cluster scaling max
