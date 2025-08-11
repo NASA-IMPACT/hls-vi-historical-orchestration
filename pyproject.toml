@@ -24,6 +24,7 @@ dev = [
     "aws-lambda-typing>=2.20.0",
     "types-requests>=2.32.0.20250515",
     "responses>=0.25.7",
+    "click>=8.2.1",
 ]
 deploy = [
     "aws-cdk-aws-lambda-python-alpha>=2.191.0a0",
