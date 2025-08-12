@@ -14,6 +14,8 @@ from mypy_boto3_sqs import SQSClient
     type=click.Choice(["dev", "prod"]),
     help="Deployed environment",
     required=True,
+    envvar="STAGE",
+    show_envvar=True,
 )
 @click.option(
     "--limit",
