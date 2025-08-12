@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from aws_cdk import CfnOutput, aws_batch as batch, aws_ec2 as ec2, aws_iam as iam
 from constructs import Construct
@@ -109,7 +109,11 @@ class BatchInfra(Construct):
         )
         # ManagedEc2EcsComputeEnvironment requires an override to track `$Latest`
         # Ref: https://github.com/aws/aws-cdk/issues/28137
-        self.compute_environment.node.find_child("Resource").add_property_override(
+        cfn_ce = cast(
+            batch.CfnComputeEnvironment,
+            self.compute_environment.node.find_child("Resource"),
+        )
+        cfn_ce.add_property_override(
             "ComputeResources.LaunchTemplate.Version",
             launch_template.latest_version_number,
         )
