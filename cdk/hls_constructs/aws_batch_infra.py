@@ -37,7 +37,10 @@ class BatchInfra(Construct):
         super().__init__(scope, construct_id, **kwargs)
 
         ecs_machine_image = batch.EcsMachineImage(
-            image=ec2.MachineImage.from_ssm_parameter("/mcp/amis/aml2-ecs"),
+            # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-launch-template.html#use-an-ssm-parameter-instead-of-an-ami-id
+            image=ec2.MachineImage.resolve_ssm_parameter_at_launch(
+                "resolve:ssm:/mcp/amis/aml2-ecs"
+            ),
             image_type=batch.EcsMachineImageType.ECS_AL2,
         )
 
@@ -53,7 +56,6 @@ class BatchInfra(Construct):
             "ComputeEnvironment",
             allocation_strategy=batch.AllocationStrategy.SPOT_CAPACITY_OPTIMIZED,
             images=[ecs_machine_image],
-            update_to_latest_image_version=True,
             instance_classes=ec2_instance_classes,
             use_optimal_instance_classes=ec2_instance_classes is None,
             spot=True,
