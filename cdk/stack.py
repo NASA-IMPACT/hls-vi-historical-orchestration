@@ -3,6 +3,7 @@ from typing import Any
 
 import jsii
 from aws_cdk import (
+    CfnOutput,
     DockerVolume,
     Duration,
     RemovalPolicy,
@@ -300,7 +301,7 @@ class HlsViStack(Stack):
             vpc=self.vpc,
             instance_classes=settings.BATCH_INSTANCE_CLASSES,
             max_vcpu=settings.BATCH_MAX_VCPU,
-            base_name=f"hls-vi-historical-orchestration-{settings.STAGE}",
+            stage=settings.STAGE,
         )
 
         # ----------------------------------------------------------------------
@@ -587,4 +588,11 @@ class HlsViStack(Stack):
             max_batching_window=Duration.minutes(1),
             report_batch_item_failures=True,
             event_source_arn=self.job_retry_queue.queue_arn,
+        )
+
+        # ===== Cloudformation outputs needed by admin tools
+        CfnOutput(
+            self,
+            "QueueFeederLambda",
+            value=self.queue_feeder_lambda.function_arn,
         )
