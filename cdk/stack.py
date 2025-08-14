@@ -3,6 +3,7 @@ from typing import Any
 
 import jsii
 from aws_cdk import (
+    CfnOutput,
     DockerVolume,
     Duration,
     RemovalPolicy,
@@ -109,6 +110,16 @@ class HlsViStack(Stack):
         # Networking
         # ----------------------------------------------------------------------
         self.vpc = ec2.Vpc.from_lookup(self, "VPC", vpc_id=settings.VPC_ID)
+
+        # Use S3 VPC endpoint to accelerate within-region traffic.
+        # For now, only add to prod stack to avoid unnecessary duplicates.
+        # It'd be better to have this as part of our (MCP owned) networking stack
+        # in the long run.
+        if settings.STAGE == "prod":
+            self.vpc.add_gateway_endpoint(
+                "S3",
+                service=ec2.GatewayVpcEndpointAwsService.S3,
+            )
 
         # ----------------------------------------------------------------------
         # Buckets
@@ -288,8 +299,9 @@ class HlsViStack(Stack):
             self,
             "HLS-VI-Infra",
             vpc=self.vpc,
+            instance_classes=settings.BATCH_INSTANCE_CLASSES,
             max_vcpu=settings.BATCH_MAX_VCPU,
-            base_name=f"hls-vi-historical-orchestration-{settings.STAGE}",
+            stage=settings.STAGE,
         )
 
         # ----------------------------------------------------------------------
@@ -320,6 +332,9 @@ class HlsViStack(Stack):
             log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
             environment={
                 "PYTHONUNBUFFERED": "TRUE",
+                "MAX_DOWNLOAD_THREADS": str(
+                    settings.PROCESSING_JOB_MAX_DOWNLOAD_THREADS
+                ),
             },
             secrets=secrets,
             stage=settings.STAGE,
@@ -573,4 +588,11 @@ class HlsViStack(Stack):
             max_batching_window=Duration.minutes(1),
             report_batch_item_failures=True,
             event_source_arn=self.job_retry_queue.queue_arn,
+        )
+
+        # ===== Cloudformation outputs needed by admin tools
+        CfnOutput(
+            self,
+            "QueueFeederLambda",
+            value=self.queue_feeder_lambda.function_arn,
         )
