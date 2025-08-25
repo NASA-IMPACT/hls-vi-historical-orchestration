@@ -439,19 +439,19 @@ class HlsViStack(Stack):
             schedule=events.Schedule.rate(
                 Duration.minutes(settings.FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES),
             ),
+            enabled=settings.SCHEDULE_QUEUE_FEEDER,
         )
-        if settings.SCHEDULE_QUEUE_FEEDER:
-            self.queue_feeder_schedule.add_target(
-                events_targets.LambdaFunction(
-                    event=events.RuleTargetInput.from_object(
-                        {
-                            "granule_submit_count": settings.FEEDER_GRANULE_SUBMIT_COUNT,
-                        }
-                    ),
-                    handler=self.queue_feeder_lambda,
-                    retry_attempts=3,
-                )
-            )
+        self.queue_feeder_schedule.add_target(
+            events_targets.LambdaFunction(
+                event=events.RuleTargetInput.from_object(
+                    {
+                        "granule_submit_count": settings.FEEDER_GRANULE_SUBMIT_COUNT,
+                    }
+                ),
+                handler=self.queue_feeder_lambda,
+                retry_attempts=3,
+            ),
+        )
 
         # ----------------------------------------------------------------------
         # Job monitor & retry system
