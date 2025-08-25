@@ -58,7 +58,7 @@ class BatchInfra(Construct):
 
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-launch-template.html#use-an-ssm-parameter-instead-of-an-ami-id
         ec2_machine_image = ec2.MachineImage.resolve_ssm_parameter_at_launch(
-            "/mcp/amis/aml2-ecs",
+            "/mcp/amis/aml2023-ecs",
         )
         ecs_machine_image = batch.EcsMachineImage(
             image=ec2_machine_image,
