@@ -64,7 +64,7 @@ class BatchInfra(Construct):
         if "resolve:ssm:" in ami_id:
             # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-launch-template.html#use-an-ssm-parameter-instead-of-an-ami-id
             ec2_machine_image = ec2.MachineImage.resolve_ssm_parameter_at_launch(
-                ami_id.lstrip("resolve:ssm:")
+                ami_id.removeprefix("resolve:ssm:")
             )
         else:
             ec2_machine_image = ec2.MachineImage.lookup(name=ami_id)
