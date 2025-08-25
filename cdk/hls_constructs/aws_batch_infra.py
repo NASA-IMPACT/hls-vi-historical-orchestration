@@ -15,6 +15,7 @@ class BatchInfra(Construct):
         vpc: ec2.IVpc,
         instance_classes: list[str] | None,
         max_vcpu: int,
+        ami_id: str,
         stage: str,
         **kwargs: Any,
     ) -> None:
@@ -31,6 +32,10 @@ class BatchInfra(Construct):
             "optimal" instance classes.
         max_vcpu:
             Maximum number of CPUs in the ComputeEnvironment
+        ami_id:
+            AWS Batch Ec2 instance AMI identifier, OR name of SSM parameter that
+            references the AMI ID prefixed by `resolve:ssm` (e.g,
+            `resolve:ssm:/param-name`).
         stage:
             Environment or "stage" for resources used to help distinguish resources
             from this stack.
@@ -56,10 +61,13 @@ class BatchInfra(Construct):
             ec2.MultipartBody.from_user_data(command_user_data)
         )
 
-        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-launch-template.html#use-an-ssm-parameter-instead-of-an-ami-id
-        ec2_machine_image = ec2.MachineImage.resolve_ssm_parameter_at_launch(
-            "/mcp/amis/aml2-ecs",
-        )
+        if "resolve:ssm:" in ami_id:
+            # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-launch-template.html#use-an-ssm-parameter-instead-of-an-ami-id
+            ec2_machine_image = ec2.MachineImage.resolve_ssm_parameter_at_launch(
+                ami_id.removeprefix("resolve:ssm:")
+            )
+        else:
+            ec2_machine_image = ec2.MachineImage.lookup(name=ami_id)
         ecs_machine_image = batch.EcsMachineImage(
             image=ec2_machine_image,
             image_type=batch.EcsMachineImageType.ECS_AL2,
