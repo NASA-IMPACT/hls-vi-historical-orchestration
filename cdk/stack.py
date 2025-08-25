@@ -301,6 +301,7 @@ class HlsViStack(Stack):
             vpc=self.vpc,
             instance_classes=settings.BATCH_INSTANCE_CLASSES,
             max_vcpu=settings.BATCH_MAX_VCPU,
+            ami_id=settings.MCP_AMI_ID,
             stage=settings.STAGE,
         )
 

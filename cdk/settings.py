@@ -76,6 +76,10 @@ class StackSettings(BaseSettings):
     # Number of internal AWS Batch job retries
     PROCESSING_JOB_RETRY_ATTEMPTS: int = 3
 
+    # AWS Batch cluster reference to SSM parameter describing the AMI _or_ the AMI ID
+    # If using SSM to resolve the AMI ID, prefix with `resolve:ssm`.
+    MCP_AMI_ID: str = "resolve:ssm:/mcp/amis/aml2023-ecs"
+
     # Cluster instance classes
     BATCH_INSTANCE_CLASSES: list[str] = [
         "C4",
