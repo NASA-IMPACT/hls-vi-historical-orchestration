@@ -70,7 +70,6 @@ class StackSettings(BaseSettings):
     # Job vCPU and memory limits
     PROCESSING_JOB_VCPU: int = 1
     PROCESSING_JOB_MEMORY_MB: int = 2_000
-    PROCESSING_JOB_MAX_DOWNLOAD_THREADS: int = 4
     # Custom log group (otherwise they'll land in the catch-all AWS Batch log group)
     PROCESSING_LOG_GROUP_NAME: str
     # Number of internal AWS Batch job retries
@@ -96,15 +95,12 @@ class StackSettings(BaseSettings):
     FEEDER_EXECUTION_SCHEDULE_RATE_MINUTES: int = 60
     FEEDER_MAX_ACTIVE_JOBS: int = 10_000
     FEEDER_GRANULE_SUBMIT_COUNT: int = 50  # 5_000
-    FEEDER_JOBS_PER_ARRAY_TASK: int = 1_000
 
     # ----- Job retry system
     # Send retryable failed AWS Batch jobs to this queue
     JOB_RETRY_QUEUE_NAME: str
     # Failed AWS Batch jobs go to a DLQ that can redrive to the retry queue
     JOB_FAILURE_DLQ_NAME: str
-    # Give up requeueing after N attempts
-    JOB_RETRY_MAX_ATTEMPTS: int = 3
 
     # ----- Logs inventory Athena database
     ATHENA_LOGS_DATABASE_NAME: str

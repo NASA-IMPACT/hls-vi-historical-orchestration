@@ -31,11 +31,11 @@ def test_handler_logs_nonretryable_failure(
     )
 
     job_monitor(
-        job_logger.bucket,
-        job_logger.logs_prefix,
+        job_change_event=event,
+        logs_bucket=job_logger.bucket,
+        logs_prefix=job_logger.logs_prefix,
         retry_queue_url=retry_queue,
         failure_dlq_url=failure_dlq,
-        job_change_event=event,
     )
 
     messages = sqs.receive_message(QueueUrl=failure_dlq)["Messages"]
@@ -46,7 +46,7 @@ def test_handler_logs_nonretryable_failure(
     assert ProcessingOutcome.SUCCESS not in events
 
 
-def test_handler_logs_retryable_failure(
+def test_handler_retryable_failure_last_attempt(
     granule_id: GranuleId,
     job_logger: GranuleLoggerService,
     sqs: SQSClient,
@@ -55,19 +55,59 @@ def test_handler_logs_retryable_failure(
     event_job_detail_change_failed: JobChangeEvent,
     job_detail_failed_spot: JobDetailTypeDef,
 ) -> None:
-    """Test the handler"""
+    """Test behavior for Spot failure on last AWS Batch attempt
+
+    The handler should log the attempt AND requeue it since AWS Batch won't
+    retry it internally.
+    """
     event = event_job_detail_change_failed.copy()
     event["detail"] = job_detail_failed_spot
+    event["detail"]["attempts"] = [event["detail"]["attempts"][0]] * 3
+
     job_monitor(
-        job_logger.bucket,
-        job_logger.logs_prefix,
+        job_change_event=event,
+        logs_bucket=job_logger.bucket,
+        logs_prefix=job_logger.logs_prefix,
         retry_queue_url=retry_queue,
         failure_dlq_url=failure_dlq,
-        job_change_event=event,
     )
 
     messages = sqs.receive_message(QueueUrl=retry_queue)["Messages"]
     assert len(messages) == 1
+
+    events = job_logger.list_events(granule_id)
+    assert len(events[ProcessingOutcome.FAILURE]) == 1
+    assert ProcessingOutcome.SUCCESS not in events
+
+
+def test_handler_retryable_failure_doesnt_requeue_nonfinal_attempt(
+    granule_id: GranuleId,
+    job_logger: GranuleLoggerService,
+    sqs: SQSClient,
+    retry_queue: str,
+    failure_dlq: str,
+    event_job_detail_change_failed: JobChangeEvent,
+    job_detail_failed_spot: JobDetailTypeDef,
+) -> None:
+    """Test behavior for Spot failure on last AWS Batch attempt
+
+    The handler should log the attempt and does NOT requeue it since AWS Batch will
+    retry it internally.
+    """
+    event = event_job_detail_change_failed.copy()
+    event["detail"] = job_detail_failed_spot
+    event["detail"]["attempts"] = [event["detail"]["attempts"][0]] * 1
+
+    job_monitor(
+        job_change_event=event,
+        logs_bucket=job_logger.bucket,
+        logs_prefix=job_logger.logs_prefix,
+        retry_queue_url=retry_queue,
+        failure_dlq_url=failure_dlq,
+    )
+
+    messages = sqs.receive_message(QueueUrl=retry_queue).get("Messages", [])
+    assert len(messages) == 0
 
     events = job_logger.list_events(granule_id)
     assert len(events[ProcessingOutcome.FAILURE]) == 1
@@ -86,11 +126,11 @@ def test_handler_logs_success(
     event = event_job_detail_change_failed.copy()
     event["detail"]["container"]["exitCode"] = 0
     job_monitor(
-        job_logger.bucket,
-        job_logger.logs_prefix,
+        job_change_event=event,
+        logs_bucket=job_logger.bucket,
+        logs_prefix=job_logger.logs_prefix,
         retry_queue_url=retry_queue,
         failure_dlq_url=failure_dlq,
-        job_change_event=event,
     )
 
     events = job_logger.list_events(granule_id)

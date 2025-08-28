@@ -46,12 +46,18 @@ class JobDetails:
 
     @property
     def job_id(self) -> str:
+        """AWS Batch job identifier"""
         return self.detail["jobId"]
 
     @property
-    def attempts(self) -> int:
-        """Return the number of attempts from this job"""
+    def job_attempts(self) -> int:
+        """The number of attempts from this job"""
         return len(self.detail.get("attempts", []))
+
+    @property
+    def max_attempts(self) -> int:
+        """Maximum number of attempts according to retry strategy"""
+        return self.detail.get("retryStrategy", {}).get("attempts", 1)
 
     @property
     def exit_code(self) -> int | None:
@@ -75,10 +81,14 @@ class JobDetails:
         """Return the outcome of this job"""
         if self.exit_code == 0:
             return JobOutcome.SUCCESS
-        # Jobs that are killed by SPOT interruptions won't have an error code,
+
+        # Jobs that are killed by Spot interruptions won't have an error code,
         # but neither will jobs that are cancelled or terminated.
+        # Note that this behavior is coupled to the "retryStrategy" config for
+        # the deployed AWS Batch JobDefinition.
         if self.exit_code is None and self.status_reason.startswith("Host EC2"):
             return JobOutcome.FAILURE_RETRYABLE
+
         return JobOutcome.FAILURE_NONRETRYABLE
 
     def get_granule_event(self) -> GranuleProcessingEvent:

@@ -333,9 +333,6 @@ class HlsViStack(Stack):
             log_group_name=settings.PROCESSING_LOG_GROUP_NAME,
             environment={
                 "PYTHONUNBUFFERED": "TRUE",
-                "MAX_DOWNLOAD_THREADS": str(
-                    settings.PROCESSING_JOB_MAX_DOWNLOAD_THREADS
-                ),
             },
             secrets=secrets,
             stage=settings.STAGE,
