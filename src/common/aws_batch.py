@@ -50,14 +50,14 @@ class JobDetails:
         return self.detail["jobId"]
 
     @property
-    def attempts(self) -> int:
+    def job_attempts(self) -> int:
         """The number of attempts from this job"""
         return len(self.detail.get("attempts", []))
 
     @property
     def max_attempts(self) -> int:
         """Maximum number of attempts according to retry strategy"""
-        return self.detail["retryStrategy"]["attempts"]
+        return self.detail.get("retryStrategy", {}).get("attempts", 1)
 
     @property
     def exit_code(self) -> int | None:

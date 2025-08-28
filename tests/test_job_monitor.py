@@ -62,7 +62,7 @@ def test_handler_retryable_failure_last_attempt(
     """
     event = event_job_detail_change_failed.copy()
     event["detail"] = job_detail_failed_spot
-    event["detail"]["attempts"] = [event["detail"]["attempts"]] * 3
+    event["detail"]["attempts"] = [event["detail"]["attempts"][0]] * 3
 
     job_monitor(
         job_change_event=event,
@@ -96,7 +96,7 @@ def test_handler_retryable_failure_doesnt_requeue_nonfinal_attempt(
     """
     event = event_job_detail_change_failed.copy()
     event["detail"] = job_detail_failed_spot
-    event["detail"]["attempts"] = [event["detail"]["attempts"]] * 1
+    event["detail"]["attempts"] = [event["detail"]["attempts"][0]] * 1
 
     job_monitor(
         job_change_event=event,

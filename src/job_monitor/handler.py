@@ -83,7 +83,7 @@ def job_monitor(
     granule_logger.put_event_details(details)
 
     if outcome == JobOutcome.FAILURE_RETRYABLE:
-        if details.attempts == details.max_attempts:
+        if details.job_attempts == details.max_attempts:
             sqs.send_message(
                 QueueUrl=retry_queue_url,
                 MessageBody=granule_event.new_attempt().to_json(),
@@ -96,8 +96,8 @@ def job_monitor(
             )
         else:
             logger.info(
-                f"Ignoring retryable failure on attempt={details.attempts} which will "
-                f"be retried for a maximum of {details.max_attempts} attempts. "
+                f"Ignoring retryable failure on attempt={details.job_attempts} which "
+                f"will be retried for a maximum of {details.max_attempts} attempts. "
             )
     elif outcome == JobOutcome.FAILURE_NONRETRYABLE:
         sqs.send_message(

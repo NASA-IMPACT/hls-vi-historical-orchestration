@@ -26,7 +26,7 @@ class TestJobDetail:
     )
     def test_attempts(self, detail: JobDetailTypeDef, attempts: int) -> None:
         job_detail = JobDetails(detail)
-        assert job_detail.attempts == attempts
+        assert job_detail.job_attempts == attempts
         assert job_detail.max_attempts == 3
 
     @pytest.mark.parametrize(
