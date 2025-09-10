@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
 
-INVENTORY_REGEX = re.compile(r".*cumulus_rds_granule.*.parquet$")
+INVENTORY_REGEX = re.compile(r".*cumulus-rds-granules.*.parquet$")
 
 
 @dataclass
@@ -184,8 +184,8 @@ class GranuleTrackerService:
         Raises
         ------
         InventoryTrackingNotFoundError
-            Raised if the tracking doesn't exist. Please "create()" before
-            getting.
+            Raised if the tracking doesn't exist. Please "create_tracking()" before
+            fetching tracking details.
         """
         try:
             resp = self.client.get_object(

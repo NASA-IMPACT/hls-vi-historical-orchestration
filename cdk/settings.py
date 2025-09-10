@@ -42,9 +42,9 @@ class StackSettings(BaseSettings):
     # Job processing bucket for state (inventories, failures, etc)
     PROCESSING_BUCKET_NAME: str
     # LPDAAC granule inventories prefix
-    PROCESSING_BUCKET_INVENTORY_PREFIX: Annotated[
+    PROCESSING_BUCKET_GRANULE_INVENTORY_PREFIX: Annotated[
         str, BeforeValidator(include_trailing_slash)
-    ] = "inventories/"
+    ] = "granule-inventories/"
     # Granule processing event logs prefix
     PROCESSING_BUCKET_LOG_PREFIX: Annotated[
         str, BeforeValidator(include_trailing_slash)

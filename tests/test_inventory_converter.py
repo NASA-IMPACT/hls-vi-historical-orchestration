@@ -15,6 +15,7 @@ def inventory() -> dict[str, list[str]]:
         "completed": [
             r"HLS.S30.T01ABC.2024224T215909.v2.0 2024-08-12\ 11:59:50.112+00 completed t",
             r"HLS.S30.T01FBE.2022224T215909.v2.0 2022-08-12\ 21:59:50.112+00 completed t",
+            r"HLS.L30.T14TPN.2025224T215909.v2.0 2025-08-14\ 17:52:44.100+00 completed t",
         ],
         "queued": [r"HLS.S30.T01GEL.2019059T213751.v2.0 \N queued f"],
         "failed": [
@@ -78,13 +79,14 @@ def test_convert_inventory_to_parquet(
     np.testing.assert_array_equal(
         df["granule_id"],
         [
-            "HLS.S30.T01FBE.2022224T215909.v2.0",
+            "HLS.L30.T14TPN.2025224T215909.v2.0",
             "HLS.S30.T01ABC.2024224T215909.v2.0",
+            "HLS.S30.T01FBE.2022224T215909.v2.0",
         ],
     )
-    np.testing.assert_array_equal(df["status"], ["completed"] * 2)
-    np.testing.assert_array_equal(df["published"], [True] * 2)
+    np.testing.assert_array_equal(df["status"], ["completed"] * 3)
+    np.testing.assert_array_equal(df["published"], [True] * 3)
     np.testing.assert_array_equal(
         df["start_datetime"],
-        df["start_datetime"].sort_values(),
+        df["start_datetime"].sort_values(ascending=False),
     )

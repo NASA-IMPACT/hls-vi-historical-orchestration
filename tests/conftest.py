@@ -232,7 +232,7 @@ def local_inventory(
 @pytest.fixture
 def s3_inventory(local_inventory: Path, bucket: str, s3: S3Client) -> str:
     """Create a fake granule inventory on S3"""
-    key = "inventories/PROD_sentinel_cumulus_rds_granule_blah.sorted.parquet"
+    key = "inventories/PROD-sentinel-cumulus-rds-granules-blah.sorted.parquet"
     s3.upload_file(
         str(local_inventory),
         Bucket=bucket,

@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import boto3
 import pyarrow as pa
@@ -34,6 +33,9 @@ INVENTORY_SCHEMA = pa.schema(
         pa.field("published", pa.bool_()),
     )
 )
+INVENTORY_SORT_BY: list[tuple[str, Literal["ascending", "descending"]]] = [
+    ("start_datetime", "descending")
+]
 
 
 @dataclass
@@ -134,11 +136,11 @@ def consolidate_partitions(
     with pq.ParquetWriter(
         destination, schema=output_schema, compression="snappy"
     ) as writer:
-        for path, expr in sorted(path_partition_expressions.items()):
+        for path, expr in sorted(path_partition_expressions.items(), reverse=True):
             logger.info(f"Sorting partition {expr} and writing to output")
             table = (
                 partitioned_ds.filter(expr)
-                .sort_by("start_datetime")
+                .sort_by(INVENTORY_SORT_BY)
                 .to_table(columns=output_schema.names)
             )
             writer.write(table)
@@ -179,7 +181,7 @@ def convert_inventory_to_parquet(
                 parsed = (
                     InventoryRow.parse_table(cast(pa.StringArray, chunk["contents"]))
                     .filter(pc.field("status") == pa.scalar("completed"))
-                    .sort_by("start_datetime")
+                    .sort_by(INVENTORY_SORT_BY)
                 )
                 parsed = parsed.append_column(
                     "year",
@@ -218,26 +220,23 @@ def handler(event: dict[str, str], context: Any) -> dict[str, str]:
     ```
     {
         "inventories": [
-            "s3://bucket/key/to/inventory/file1",
-            "s3://bucket/key/to/inventory/file2"
-        ]
+            "s3://bucket/key/to/lpdaac-inventory/file1",
+            "s3://bucket/key/to/lpdaac-inventory/file2"
+        ],
+        "destination": "s3://bucket/key/to/processed-inventory/file.parquet"
     }
     ```
     """
     s3 = boto3.client("s3")
 
-    # Destination
-    dest_bucket = os.environ["PROCESSING_BUCKET_NAME"]
-    dest_prefix = os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"].rstrip("/")
-
     # Parse source inventories into buckets and keys
     src_buckets, src_keys = zip(
         *[s3path.replace("s3://", "").split("/", 1) for s3path in event["inventories"]]
     )
-    # remove .sorted* suffix - should just get 1
-    src_basename = list({src_key.rsplit("/", 1)[1] for src_key in src_keys})[0]
 
-    dest_key = f"{dest_prefix}/{src_basename}.parquet"
+    # Destination
+    dest_s3path = event["destination"]
+    dest_bucket, dest_key = dest_s3path.replace("s3://", "").split("/", 1)
 
     with TemporaryDirectory() as tmpdir:
         inventory_parquet = Path(tmpdir) / "inventory.parquet"

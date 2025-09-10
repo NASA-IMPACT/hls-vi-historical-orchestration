@@ -88,7 +88,7 @@ def handler(event: dict[str, int], context: Any) -> dict[str, Any]:
 
     return queue_feeder(
         processing_bucket=os.environ["PROCESSING_BUCKET_NAME"],
-        inventory_prefix=os.environ["PROCESSING_BUCKET_INVENTORY_PREFIX"],
+        inventory_prefix=os.environ["PROCESSING_BUCKET_GRANULE_INVENTORY_PREFIX"],
         output_bucket=debug_bucket or output_bucket,
         job_queue=os.environ["BATCH_QUEUE_NAME"],
         job_definition_name=os.environ["BATCH_JOB_DEFINITION_NAME"],

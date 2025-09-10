@@ -359,7 +359,7 @@ class HlsViStack(Stack):
             timeout=Duration.minutes(10),
             environment={
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
-                "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
+                "PROCESSING_BUCKET_GRANULE_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_GRANULE_INVENTORY_PREFIX,
             },
             bundling=lambda_python.BundlingOptions(
                 command_hooks=UvHooks(groups=["arrow"]),
@@ -370,7 +370,7 @@ class HlsViStack(Stack):
         )
         self.processing_bucket.grant_read_write(
             self.inventory_converter_lambda,
-            objects_key_pattern=f"{settings.PROCESSING_BUCKET_INVENTORY_PREFIX}*",
+            objects_key_pattern=f"{settings.PROCESSING_BUCKET_GRANULE_INVENTORY_PREFIX}*",
         )
 
         # ----------------------------------------------------------------------
@@ -389,7 +389,7 @@ class HlsViStack(Stack):
             environment={
                 "FEEDER_MAX_ACTIVE_JOBS": str(settings.FEEDER_MAX_ACTIVE_JOBS),
                 "PROCESSING_BUCKET_NAME": self.processing_bucket.bucket_name,
-                "PROCESSING_BUCKET_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_INVENTORY_PREFIX,
+                "PROCESSING_BUCKET_GRANULE_INVENTORY_PREFIX": settings.PROCESSING_BUCKET_GRANULE_INVENTORY_PREFIX,
                 "BATCH_QUEUE_NAME": self.batch_infra.queue.job_queue_name,
                 "BATCH_JOB_DEFINITION_NAME": self.processing_job.job_def.job_definition_name,
                 **bucket_envvars,
