@@ -201,8 +201,8 @@ def convert_inventory_to_parquet(
                     existing_data_behavior="overwrite_or_ignore",
                 )
 
-        # Delete original datasets to save space
-        for inventory in inventories:
+            # Delete original datasets to save space
+            reader.close()
             inventory.unlink()
 
         # Open partitioned dataset, sort each partition, and consolidate
