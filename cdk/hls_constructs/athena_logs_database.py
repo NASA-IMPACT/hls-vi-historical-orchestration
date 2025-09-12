@@ -213,6 +213,11 @@ class AthenaLogsDatabase(Construct):
                 comment="The event log's creation date or the last modified date, whichever is the latest.",
                 type="timestamp",
             ),
+            glue.CfnTable.ColumnProperty(
+                name="key",
+                comment="The event log S3 key.",
+                type="String",
+            ),
         ]
 
         view_specification = {
