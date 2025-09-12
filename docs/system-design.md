@@ -222,10 +222,15 @@ We use S3 inventories to facilitate bulk analysis of these logs and construct ta
 advantage of the fact that we have embedded most of the useful information into our S3 path construction. Our granule
 processing table contains the following information,
 
-| Column | Type | Description | | ------------------ | --------- | ------------------------------- | | outcome | str |
-Job outcome (success, failed) | | platform | str | Satellite platform (L30, S30) | | acquisition_date | timestamp |
-Acquisition date of the granule | | granule_id | str | Granule ID for the job | | attempt | int | Attempt number | |
-last_modified_date | timestamp | Last modified date of the log | | key | str | S3 key to the log file |
+| Column             | Type      | Description                     |
+| ------------------ | --------- | ------------------------------- |
+| outcome            | str       | Job outcome (success, failed)   |
+| platform           | str       | Satellite platform (L30, S30)   |
+| acquisition_date   | timestamp | Acquisition date of the granule |
+| granule_id         | str       | Granule ID for the job          |
+| attempt            | int       | Attempt number                  |
+| last_modified_date | timestamp | Last modified date of the log   |
+| key                | str       | S3 key to the log file          |
 
 For more information about summaries we can derive from this table, see the
 [documentation about status reporting](./reporting.md).
