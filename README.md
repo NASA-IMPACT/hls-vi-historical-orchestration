@@ -58,19 +58,29 @@ scripts/lint
 
 ### Deployment
 
-To deploy with CDK,
+We deploy this project to AWS using Python and CDK. First make sure that you've installed the deployment requirements,
 
 ```plain
-uv run cdk deploy
+uv sync --group deploy
 ```
 
-You may consider pointing UV to a different `.env` file, e.g.,
+Next, you probably want to bootstrap a "dotenv" file using the `scripts/bootstrap-dotenv.sh` script to gather deployment
+configuration settings. Note that if you are using a "dotenv" file you will need to explicitly tell `uv` to load it
+using a command line flag,
 
 ```plain
-uv run --env-file .env.dev -- cdk deploy
+uv run --env-file .env.dev -- cdk diff
 ```
 
 or using an environment variable,
+
+```plain
+UV_ENV_FILE=.env.dev uv run cdk diff
+```
+
+Viewing the CDK Cloudformation stack diff is a good first step to make sure your infrastructural changes are working
+as intended. You probably should deploy only using the CI/CD pipelines configured for this repository, but for
+completeness you could also deploy using,
 
 ```plain
 UV_ENV_FILE=.env.dev uv run cdk deploy
