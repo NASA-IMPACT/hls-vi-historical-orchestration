@@ -173,7 +173,8 @@ class AthenaLogsDatabase(Construct):
             date_parse(regexp_extract(key, 'acquisition_date=([\d-]+)', 1), '%Y-%m-%d') AS acquisition_date,
             regexp_extract(key, 'granule_id=([\w\.]+)', 1) AS granule_id,
             cast(regexp_extract(key, 'attempt=([0-9]+)', 1) AS INT) AS attempt,
-            last_modified_date
+            last_modified_date,
+            key
         FROM {logs_s3_inventory_table_name}
         WHERE
             dt = (SELECT max(dt) FROM {logs_s3_inventory_table_name})
@@ -211,6 +212,11 @@ class AthenaLogsDatabase(Construct):
                 name="last_modified_date",
                 comment="The event log's creation date or the last modified date, whichever is the latest.",
                 type="timestamp",
+            ),
+            glue.CfnTable.ColumnProperty(
+                name="key",
+                comment="The event log S3 key.",
+                type="String",
             ),
         ]
 

@@ -25,6 +25,9 @@ dev = [
     "types-requests>=2.32.0.20250515",
     "responses>=0.25.7",
     "click>=8.2.1",
+    "mdformat>=0.7.22",
+    "mdformat-pyproject>=0.0.2",
+    "mdformat-tables>=1.0.0",
 ]
 deploy = [
     "aws-cdk-aws-lambda-python-alpha>=2.191.0a0",
@@ -86,3 +89,13 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "boto_session_manager"
 ignore_missing_imports = true
+
+[tool.mdformat]
+exclude = [
+  ".git",
+  ".github",
+  ".venv",
+  ".pytest_cache",
+  "cdk.out"
+]
+wrap = 120

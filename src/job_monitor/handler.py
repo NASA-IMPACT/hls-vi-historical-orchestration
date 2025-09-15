@@ -86,7 +86,7 @@ def job_monitor(
         if details.job_attempts == details.max_attempts:
             sqs.send_message(
                 QueueUrl=retry_queue_url,
-                MessageBody=granule_event.new_attempt().to_json(),
+                MessageBody=granule_event.to_json(),
                 MessageAttributes={
                     "FailureType": {
                         "StringValue": "RETRYABLE",
@@ -102,7 +102,7 @@ def job_monitor(
     elif outcome == JobOutcome.FAILURE_NONRETRYABLE:
         sqs.send_message(
             QueueUrl=failure_dlq_url,
-            MessageBody=granule_event.new_attempt().to_json(),
+            MessageBody=granule_event.to_json(),
             MessageAttributes={
                 "FailureType": {
                     "StringValue": "NONRETRYABLE",
