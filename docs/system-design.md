@@ -94,6 +94,19 @@ detail.
 
 ## Job Submission System
 
+The "Job Submission System" controls the upper bound of the number of granules we process each day. We're generally rate
+limited by the ability of the LPDAAC to ingest our data product, and we worked closely to ensure our data production
+doesn't exceed the ability of their system to consume and publish our data products. We configure this rate using two
+controls,
+
+1. How many granules does the "Queue Feeder" submit at one time?
+1. How frequently does the "Queue Feeder" submit jobs?
+
+For example, if we schedule 1,000 jobs every hour, we would produce at most 24,000 granules per day.
+
+Submitting jobs into our "Job Processing System" requires the granule inventory, a lightweight status tracker, and
+the "Queue Feeder" system:
+
 ```mermaid
 flowchart LR
     INVENTORY@{ shape: bow-rect, label: "Granule Inventory<br>(Parquet)" }
@@ -111,14 +124,6 @@ flowchart LR
     FEEDER --> PROCESSING_SYSTEM
 ```
 
-The "Job Submission System" controls the upper bound of the number of granules we process each day. We're generally rate
-limited by the ability of the LPDAAC to ingest our data product, and we worked closely to ensure our data production
-doesn't exceed the ability of their system to consume and publish our data products. We configure this rate using two
-controls,
-
-1. How many granules does the "Queue Feeder" submit at one time?
-1. How frequently does the "Queue Feeder" submit jobs?
-
 The "Queue Feeder" submits a job for each granule in the "Granule Inventory" by performing a few simple steps:
 
 1. The "Feeder Scheduler" tells the "Queue Feeder" to process `N` granules.
@@ -128,7 +133,11 @@ The "Queue Feeder" submits a job for each granule in the "Granule Inventory" by 
 1. The "Queue Feeder" submits `N` jobs into the AWS Batch cluster.
 1. The "Queue Feeder" updates the "Granule Tracker" with the updated number of submitted granules (`row_start + N`).
 
-We represent the processing of a granule as a "Granule Processing Event" containing some basic information that unqiuely
+The sort order of the "Granule Inventory" determines how we work through the historical backfill. We work backwards from
+the launch of the HLS-VI product so that users can start using the process for applications like time series analysis of
+recent time periods as soon as possible.
+
+We represent the processing of a granule as a "Granule Processing Event" containing some basic information that uniquely
 describes the unit of work:
 
 ```python
@@ -147,10 +156,6 @@ of our job monitoring and requeuing systems.
 To avoid overhead with scaling up and down our cluster, we want our cluster to always have more work to do but without
 dramatically increasing the size of our processing queue. To avoid our "Job Processing" queue being overwhelmed, the
 "Queue Feeder" will exit early if it detects that the "Job Processing" has too many jobs in the queue.
-
-The sort order of the "Granule Inventory" determines how we work through the historical backfill. We work backwards from
-the launch of the HLS-VI product so that users can start using the process for applications like time series analysis of
-recent time periods as soon as possible.
 
 ## Job Processing System
 
@@ -175,15 +180,17 @@ we've configured our AWS Batch cluster to be able to handle the jobs submitted.
 
 Rather than polling for the status of our AWS Batch jobs as we do with StepFunctions in the `hls-orchestration`
 pipeline, here we take a more event driven approach that monitors for AWS Batch
-[job state change events](https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html). We subscribe the
-"Job Monitor" system to updates from the queue associated with our AWS Batch cluster any terminal job statuses
-("success" or "failure", but not "submitted" or "running") so that we can take action based on what happened.
+[job state change events](https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html). The "Job Monitor"
+system subscribes to updates from the queue associated with our AWS Batch cluster any terminal job statuses
+(e.g., "success" or "failure", but not "submitted" or "running") so that we can take action based on what happened at
+the end of a job's lifecycle.
 
 ### Job Retries
 
-The "Job Monitor" _always_ logs the outcome of the AWS Batch job if the job will not be retried by AWS Batch internally.
-Jobs that succeed are logged and no further action is taken. However, the "Job Monitor" will also forward the
-`GranuleProcessingEvent` for further action depending on the type of failure:
+The "Job Monitor" _always_ logs the outcome of the AWS Batch job. The one caveat is we ignore failures that occur when
+the job would be retried by the AWS Batch JobDefinition's `RetryStrategy` (e.g., Spot market failures on the first or
+second attempt). Jobs that succeed are logged and no further action is taken. However, the "Job Monitor" will also
+forward the `GranuleProcessingEvent` for further action depending on the type of failure:
 
 1. "Retryable" failures are sent to a "retry queue" for resubmission into the "Job Processing System".
    - Retryable failures usually occur because of Ec2 Spot market interruptions.
