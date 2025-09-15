@@ -43,6 +43,7 @@ def test_handler_logs_nonretryable_failure(
 
     events = job_logger.list_events(granule_id)
     assert len(events[ProcessingOutcome.FAILURE]) == 1
+    assert events[ProcessingOutcome.FAILURE][0].attempt == 0
     assert ProcessingOutcome.SUCCESS not in events
 
 
@@ -77,6 +78,7 @@ def test_handler_retryable_failure_last_attempt(
 
     events = job_logger.list_events(granule_id)
     assert len(events[ProcessingOutcome.FAILURE]) == 1
+    assert events[ProcessingOutcome.FAILURE][0].attempt == 0
     assert ProcessingOutcome.SUCCESS not in events
 
 
@@ -135,4 +137,5 @@ def test_handler_logs_success(
 
     events = job_logger.list_events(granule_id)
     assert len(events[ProcessingOutcome.SUCCESS]) == 1
+    assert events[ProcessingOutcome.SUCCESS][0].attempt == 0
     assert ProcessingOutcome.FAILURE not in events
