@@ -104,8 +104,8 @@ controls,
 
 For example, if we schedule 1,000 jobs every hour, we would produce at most 24,000 granules per day.
 
-Submitting jobs into our "Job Processing System" requires the granule inventory, a lightweight status tracker, and
-the "Queue Feeder" system:
+Submitting jobs into our "Job Processing System" requires the granule inventory, a lightweight status tracker, and the
+"Queue Feeder" system:
 
 ```mermaid
 flowchart LR
@@ -181,9 +181,9 @@ we've configured our AWS Batch cluster to be able to handle the jobs submitted.
 Rather than polling for the status of our AWS Batch jobs as we do with StepFunctions in the `hls-orchestration`
 pipeline, here we take a more event driven approach that monitors for AWS Batch
 [job state change events](https://docs.aws.amazon.com/batch/latest/userguide/batch_job_events.html). The "Job Monitor"
-system subscribes to updates from the queue associated with our AWS Batch cluster any terminal job statuses
-(e.g., "success" or "failure", but not "submitted" or "running") so that we can take action based on what happened at
-the end of a job's lifecycle.
+system subscribes to updates from the queue associated with our AWS Batch cluster any terminal job statuses (e.g.,
+"success" or "failure", but not "submitted" or "running") so that we can take action based on what happened at the end
+of a job's lifecycle.
 
 ### Job Retries
 
