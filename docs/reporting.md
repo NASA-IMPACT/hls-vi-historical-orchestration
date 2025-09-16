@@ -28,8 +28,14 @@ The admin scripts in this repository include a tool to create a detailed status 
 for each platform and acquisition year. The report can be exported as a CSV and is summarized as a bar chart for
 inclusion in reports.
 
-To run the script, first ensure you're logged into AWS with local credentials. You can then run the report generation
-script as:
+To run the script, first ensure you're logged into AWS with local credentials. You will also need to install the
+"reporting" optional dependency for this package:
+
+```shell
+uv sync --group reporting
+```
+
+You can then run the report generation script as:
 
 ```shell
 # ensure AWS profile is specified
