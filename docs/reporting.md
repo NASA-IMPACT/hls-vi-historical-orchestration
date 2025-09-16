@@ -24,7 +24,9 @@ GROUP BY platform, outcome
 
 ## Granule Progress By Year
 
-The admin scripts in this repository include a tool to create a detailed status report of granule processing outcomes for each platform and acquisition year. The report can be exported as a CSV and is summarized as a bar chart for inclusion in reports.
+The admin scripts in this repository include a tool to create a detailed status report of granule processing outcomes
+for each platform and acquisition year. The report can be exported as a CSV and is summarized as a bar chart for
+inclusion in reports.
 
 To run the script, first ensure you're logged into AWS with local credentials. You can then run the report generation
 script as:
