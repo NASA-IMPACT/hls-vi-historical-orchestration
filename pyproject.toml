@@ -37,6 +37,10 @@ deploy = [
 arrow = [
     "pyarrow>=18.1.0",
 ]
+reporting = [
+    "awswrangler>=3.13.0",
+    "matplotlib>=3.10.6",
+]
 
 [build-system]
 requires = ["hatchling"]
