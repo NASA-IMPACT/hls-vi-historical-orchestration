@@ -3,7 +3,7 @@
 As a general tip, we usually want to limit our queries to only the latest attempt for a given granule ID. This reduces
 duplicate granule counts in our results and ensures we only look at the latest result for a granule ID.
 
-## Query for overall status
+## Query 1: Overall status
 
 We can summarize the status for all granules, organized by the satellite platform (L30, S30) and outcome (success,
 failure).
@@ -22,7 +22,15 @@ FROM latest_attempt
 GROUP BY platform, outcome
 ```
 
-## Granule Progress By Year
+When added to a table, the output would look like,
+
+| Success (Landsat | Failure (Landsat) | Success (Sentinel-2) | Failure (Sentinel-2) |
+| ---------------- | ----------------- | -------------------- | -------------------- |
+| 869,670          | 52                | 155,217              | 12                   |
+
+This output isn't very detailed but is useful for reporting overall status each week.
+
+## Query 2: Granule Progress By Year
 
 The admin scripts in this repository include a tool to create a detailed status report of granule processing outcomes
 for each platform and acquisition year. The report can be exported as a CSV and is summarized as a bar chart for
