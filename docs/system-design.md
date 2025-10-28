@@ -176,6 +176,21 @@ containers.
 The "Job Submission System" is ultimately the rate limiting factor for the number of granules we produce each day, and
 we've configured our AWS Batch cluster to be able to handle the jobs submitted.
 
+
+```mermaid
+flowchart LR
+    FEEDER@{ shape: rect, label: "Job Submission System" }
+    BATCH_QUEUE@{ shape: das, label: "Job Queue<br>(AWS Batch)" }
+    BATCH_CLUSTER@{ shape: rect, label: "Compute Cluster<br>(AWS Batch)" }
+    MONITOR@{ shape: rect, label: "Job Monitoring System" }
+
+    FEEDER --> BATCH_QUEUE
+    subgraph "Job Processing System"
+        BATCH_QUEUE --> BATCH_CLUSTER
+    end
+    BATCH_CLUSTER --> MONITOR
+```
+
 ## Job Monitoring System
 
 Rather than polling for the status of our AWS Batch jobs as we do with StepFunctions in the `hls-orchestration`
@@ -184,6 +199,37 @@ pipeline, here we take a more event driven approach that monitors for AWS Batch
 system subscribes to updates from the queue associated with our AWS Batch cluster any terminal job statuses (e.g.,
 "success" or "failure", but not "submitted" or "running") so that we can take action based on what happened at the end
 of a job's lifecycle.
+
+```mermaid
+flowchart LR
+    BATCH_CLUSTER@{ shape: rect, label: "Job Processing System" }
+
+    MONITOR@{ shape: rect, label: "Job Monitor<br>(λ)" }
+    REQUEUER@{ shape: rect, label: "Requeuer<br>(λ)" }
+    LOGS@{ shape: bow-rect, label: "Job Logs<br>(S3)" }
+    LOGS_INVENTORY@{ shape: bow-rect, label: "Logs S3 Inventory<br>(Parquet)" }
+    RETRY_QUEUE@{ shape: das, label: "Retry Queue<br>(SQS)" }
+    FAILURE_DLQ@{ shape: das, label: "Failure DLQ<br>(SQS)" }
+    ATHENA@{ shape: cyl, label: "Job Logs Table<br>(Athena)" }
+    OPS_TEAM@{ shape: trap-t, label: "System Operator<br>(Human)" }
+
+    BATCH_CLUSTER --events--> MONITOR
+
+    subgraph "Job Monitoring System"
+
+        MONITOR --job outcome--> LOGS
+        LOGS --> LOGS_INVENTORY
+        LOGS_INVENTORY --> ATHENA
+
+        MONITOR --retryable--> RETRY_QUEUE
+        RETRY_QUEUE --> REQUEUER
+
+        MONITOR --non-retryable--> FAILURE_DLQ
+    end
+
+    REQUEUER --> BATCH_CLUSTER
+    OPS_TEAM --query--> ATHENA
+```
 
 ### Job Retries
 
