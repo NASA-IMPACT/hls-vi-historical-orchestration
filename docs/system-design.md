@@ -176,7 +176,6 @@ containers.
 The "Job Submission System" is ultimately the rate limiting factor for the number of granules we produce each day, and
 we've configured our AWS Batch cluster to be able to handle the jobs submitted.
 
-
 ```mermaid
 flowchart LR
     FEEDER@{ shape: rect, label: "Job Submission System" }

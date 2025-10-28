@@ -110,7 +110,7 @@ class AwsBatchClient:
     client: BatchClient = field(default_factory=lambda: boto3.client("batch"))
 
     def active_jobs_below_threshold(self, threshold: int) -> bool:
-        """Ensure active (running/submitted/pending/etc) is below some threshould count
+        """Ensure active (running/submitted/pending/etc) is below some threshold count
 
         AWS Batch has some service limits (e.g., 1,000,000 jobs per region
         in the SUBMITTED state) that we need to follow, but mostly this is here to
