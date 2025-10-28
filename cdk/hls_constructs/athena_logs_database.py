@@ -289,7 +289,13 @@ class AthenaLogsDatabase(Construct):
         logs_s3_prefix: str,
         logs_event_queue_name: str,
     ) -> None:
-        """Create raw logs Glue table and event driven Crawler"""
+        """Create raw logs Glue table and event driven Crawler
+
+        This Glue crawler is fed by a SQS queue containing S3 object events
+        to greatly reduce the amount of work the crawler needs to do to keep
+        up to date. See also:
+        https://aws.amazon.com/blogs/big-data/run-aws-glue-crawlers-using-amazon-s3-event-notifications/
+        """
         # Create queue to receive S3 ObjectCreated and ObjectDeleted notifications
         self.logs_event_queue = sqs.Queue(
             self,
