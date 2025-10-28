@@ -105,5 +105,6 @@ class StackSettings(BaseSettings):
     # ----- Logs inventory Athena database
     ATHENA_LOGS_DATABASE_NAME: str
     ATHENA_LOGS_S3_INVENTORY_TABLE_START_DATETIME: dt.datetime
-    ATHENA_LOGS_S3_INVENTORY_TABLE_NAME: str = "logs_s3_inventories"
-    ATHENA_LOGS_GRANULE_PROCESSING_EVENTS_VIEW_NAME: str = "granule_processing_events"
+    ATHENA_LOGS_S3_INVENTORY_TABLE_NAME: str = "logs-s3-inventories"
+    ATHENA_LOGS_GRANULE_PROCESSING_EVENTS_VIEW_NAME: str = "granule-processing-events"
+    ATHENA_LOGS_EVENT_QUEUE_NAME: str
