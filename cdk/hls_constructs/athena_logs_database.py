@@ -7,15 +7,50 @@ from aws_cdk import (
     Aws,
     RemovalPolicy,
     aws_glue as glue,
-    aws_iam as iam,
     aws_s3 as s3,
-    aws_s3_notifications as s3n,
-    aws_sqs as sqs,
 )
 from constructs import Construct
 
 # Obtained from running AWS Glue crawler to infer the schema
 ATHENA_STRUCT_AWS_BATCH_JOB_INFO = "struct<jobArn:string,jobName:string,jobId:string,jobQueue:string,status:string,attempts:array<struct<container:struct<containerInstanceArn:string,taskArn:string,exitCode:int,logStreamName:string,networkInterfaces:array<string>>,startedAt:bigint,stoppedAt:bigint,statusReason:string>>,statusReason:string,createdAt:bigint,retryStrategy:struct<attempts:int,evaluateOnExit:array<struct<onReason:string,action:string,onStatusReason:string>>>,startedAt:bigint,stoppedAt:bigint,dependsOn:array<string>,jobDefinition:string,parameters:string,container:struct<image:string,command:array<string>,jobRoleArn:string,executionRoleArn:string,volumes:array<string>,environment:array<struct<name:string,value:string>>,mountPoints:array<string>,readonlyRootFilesystem:boolean,ulimits:array<string>,exitCode:int,containerInstanceArn:string,taskArn:string,logStreamName:string,networkInterfaces:array<string>,resourceRequirements:array<struct<value:string,type:string>>,logConfiguration:struct<logDriver:string,options:struct<awslogs-group:string,awslogs-region:string,awslogs-stream-prefix:string>,secretOptions:array<string>>,secrets:array<string>>,timeout:struct<attemptDurationSeconds:int>,tags:struct<resourceArn:string>,propagateTags:boolean,platformCapabilities:array<string>,eksAttempts:array<string>,isTerminated:boolean>"
+
+COMMON_TABLE_COLUMNS = {
+    "outcome": glue.CfnTable.ColumnProperty(
+        name="outcome",
+        comment="The processing event outcome (failed, success).",
+        type="String",
+    ),
+    "platform": glue.CfnTable.ColumnProperty(
+        name="platform",
+        comment="The platform (L30, S30).",
+        type="String",
+    ),
+    "acquisition_date": glue.CfnTable.ColumnProperty(
+        name="acquisition_date",
+        comment="The acquisition date.",
+        type="timestamp",
+    ),
+    "granule_id": glue.CfnTable.ColumnProperty(
+        name="granule_id",
+        comment="HLS granule ID.",
+        type="String",
+    ),
+    "attempt": glue.CfnTable.ColumnProperty(
+        name="attempt",
+        comment="Attempt.",
+        type="int",
+    ),
+    "last_modified_date": glue.CfnTable.ColumnProperty(
+        name="last_modified_date",
+        comment="The event log's creation date or the last modified date, whichever is the latest.",
+        type="timestamp",
+    ),
+    "key": glue.CfnTable.ColumnProperty(
+        name="key",
+        comment="The event log S3 key.",
+        type="String",
+    ),
+}
 
 
 def athena_type_to_presto(athena_type: str | None) -> str:
@@ -84,17 +119,19 @@ class AthenaLogsDatabase(Construct):
             )
         )
 
-        # self.granule_processing_events_raw_table = self._create_granule_processing_events_raw_logs_table(
-        #     database_arn=f"arn:aws:glue:{Aws.REGION}:{Aws.ACCOUNT_ID}:database/{database_name}",
-        #     logs_bucket=logs_bucket,
-        #     logs_s3_prefix=logs_s3_prefix,
-        # )
+        self.granule_processing_events_raw_table = (
+            self._create_granule_processing_events_raw_logs_table(
+                database_name=database_name,
+                logs_bucket=logs_bucket,
+                logs_s3_prefix=logs_s3_prefix,
+            )
+        )
 
-        self._create_granule_processing_events_raw_logs_crawler(
-            database_name=database_name,
-            logs_bucket=logs_bucket,
-            logs_s3_prefix=logs_s3_prefix,
-            logs_event_queue_name=logs_event_queue_name,
+        self.granule_processing_events_raw_failures_view = (
+            self._create_granule_processing_events_raw_failures_view(
+                database_name=database_name,
+                raw_table=self.granule_processing_events_raw_table,
+            )
         )
 
     def _create_s3_inventory_table(
@@ -130,7 +167,7 @@ class AthenaLogsDatabase(Construct):
                     glue.CfnTable.ColumnProperty(
                         name="dt",
                         comment="Report date",
-                        type="String",
+                        type="string",
                     ),
                 ],
                 storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
@@ -138,17 +175,17 @@ class AthenaLogsDatabase(Construct):
                         glue.CfnTable.ColumnProperty(
                             name="bucket",
                             comment="The name of the bucket that the inventory is for.",
-                            type="String",
+                            type="string",
                         ),
                         glue.CfnTable.ColumnProperty(
                             name="key",
                             comment="The object key name (or key) that uniquely identifies the object in the bucket.",
-                            type="String",
+                            type="string",
                         ),
                         glue.CfnTable.ColumnProperty(
                             name="version_id",
                             comment="The object version ID.",
-                            type="String",
+                            type="string",
                         ),
                         glue.CfnTable.ColumnProperty(
                             name="is_latest",
@@ -203,49 +240,24 @@ class AthenaLogsDatabase(Construct):
             cast(regexp_extract(key, 'attempt=([0-9]+)', 1) AS INT) AS attempt,
             last_modified_date,
             key
-        FROM {logs_s3_inventory_table_name}
+        FROM "{logs_s3_inventory_table_name}"
         WHERE
-            dt = (SELECT max(dt) FROM {logs_s3_inventory_table_name})
+            dt = (SELECT max(dt) FROM "{logs_s3_inventory_table_name}")
             AND is_latest
             AND NOT is_delete_marker
         """
 
         columns = [
-            glue.CfnTable.ColumnProperty(
-                name="outcome",
-                comment="The processing event outcome (failed, success).",
-                type="String",
-            ),
-            glue.CfnTable.ColumnProperty(
-                name="platform",
-                comment="The platform (L30, S30).",
-                type="String",
-            ),
-            glue.CfnTable.ColumnProperty(
-                name="acquisition_date",
-                comment="The acquisition date.",
-                type="timestamp",
-            ),
-            glue.CfnTable.ColumnProperty(
-                name="granule_id",
-                comment="HLS granule ID.",
-                type="String",
-            ),
-            glue.CfnTable.ColumnProperty(
-                name="attempt",
-                comment="Attempt.",
-                type="int",
-            ),
-            glue.CfnTable.ColumnProperty(
-                name="last_modified_date",
-                comment="The event log's creation date or the last modified date, whichever is the latest.",
-                type="timestamp",
-            ),
-            glue.CfnTable.ColumnProperty(
-                name="key",
-                comment="The event log S3 key.",
-                type="String",
-            ),
+            COMMON_TABLE_COLUMNS[column_name]
+            for column_name in (
+                "outcome",
+                "platform",
+                "acquisition_date",
+                "granule_id",
+                "attempt",
+                "last_modified_date",
+                "key",
+            )
         ]
 
         view_specification = {
@@ -275,7 +287,7 @@ class AthenaLogsDatabase(Construct):
                     glue.CfnTable.ColumnProperty(
                         name="dt",
                         comment="Report date",
-                        type="String",
+                        type="string",
                     ),
                 ],
                 storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
@@ -291,219 +303,173 @@ class AthenaLogsDatabase(Construct):
         view.add_dependency(logs_s3_inventory_table)
         return view
 
-    #    def _create_granule_processing_events_raw_logs_table(
-    #        self,
-    #        *,
-    #        database_arn: str,
-    #        logs_bucket: s3.IBucket,
-    #        logs_s3_prefix: str,
-    #    ) -> glue_alpha.S3Table:
-    #        """Create raw logs Glue table"""
-    #        table = glue_alpha.S3Table(
-    #            self,
-    #            "GranuleProcessingEventsRawLogsTable",
-    #            database=glue_alpha.Database.from_database_arn(
-    #                self, "DatabaseLookup", database_arn=database_arn
-    #            ),
-    #            table_name="granule-processing-events-raw",
-    #            data_format=glue_alpha.DataFormat.JSON,
-    #            columns=[
-    #                glue_alpha.Column(
-    #                    name="attempt",
-    #                    comment="Job attempt",
-    #                    type=glue_alpha.Schema.INTEGER,
-    #                ),
-    #                glue_alpha.Column(
-    #                    name="job_info",
-    #                    comment="AWS Batch job information",
-    #                    type=glue_alpha.Type(
-    #                        input_string=ATHENA_STRUCT_AWS_BATCH_JOB_INFO,
-    #                        is_primitive=False,
-    #                    ),
-    #                ),
-    #            ],
-    #            partition_keys=[
-    #                glue_alpha.Column(
-    #                    name="outcome",
-    #                    comment="Job outcome",
-    #                    type=glue_alpha.Schema.STRING,
-    #                ),
-    #                glue_alpha.Column(
-    #                    name="platform",
-    #                    comment="Satellite platform",
-    #                    type=glue_alpha.Schema.STRING,
-    #                ),
-    #                glue_alpha.Column(
-    #                    name="acquisition_date",
-    #                    comment="Granule acquisition date",
-    #                    type=glue_alpha.Schema.STRING,
-    #                ),
-    #                glue_alpha.Column(
-    #                    name="granule_id",
-    #                    comment="Granule ID",
-    #                    type=glue_alpha.Schema.STRING,
-    #                ),
-    #            ],
-    #            storage_parameters=[
-    #                glue_alpha.StorageParameter.custom(
-    #                    "serde.serialization.paths", "attempt,granule_id,job_info,outcome"
-    #                )
-    #            ],
-    #            bucket=s3.Bucket.from_bucket_arn(
-    #                self, "LogsBucketRef", bucket_arn=logs_bucket.bucket_arn
-    #            ),
-    #            s3_prefix=logs_s3_prefix,
-    #            enable_partition_filtering=True,
-    #        )
-    #        table.node.default_child.add_property_override(
-    #            "TableInput.StorageDescriptor.SerdeInfo.Parameters",
-    #            {
-    #                "paths": "attempt,granule_id,job_info,outcome",
-    #            },
-    #        )
-    #        return table
-
-    #    def _create_granule_processing_events_raw_logs_table(
-    #        self,
-    #        *,
-    #        database_name: str,
-    #        logs_bucket: s3.IBucket,
-    #        logs_s3_prefix: str,
-    #    ) -> glue.CfnTable:
-    #        """Create raw logs Glue table"""
-    #        table = glue.CfnTable(
-    #            self,
-    #            "GranuleProcessingEventsRawLogsTable",
-    #            catalog_id=Aws.ACCOUNT_ID,
-    #            database_name=database_name,
-    #            table_input=glue.CfnTable.TableInputProperty(
-    #                name="granule-processing-event-raw-logs",
-    #                storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
-    #                    columns=[
-    #                        glue.CfnTable.ColumnProperty(
-    #                            name="attempt",
-    #                            comment="Job attempt",
-    #                            type="int",
-    #                        ),
-    #                        glue.CfnTable.ColumnProperty(
-    #                            name="job_info",
-    #                            comment="AWS Batch job information",
-    #                            type=ATHENA_STRUCT_AWS_BATCH_JOB_INFO,
-    #                        ),
-    #                    ],
-    #                    location=logs_bucket.s3_url_for_object(key=logs_s3_prefix),
-    #                    compressed=False,
-    #                    number_of_buckets=-1,
-    #                    serde_info=glue.CfnTable.SerdeInfoProperty(
-    #                        parameters={
-    #                            "paths": "attempt,granule_id,job_info,outcome",
-    #                        },
-    #                        serialization_library="org.openx.data.jsonserde.JsonSerDe",
-    #                    ),
-    #                    parameters={
-    #                        "classification": "json",
-    #                        "partition_filtering.enabled": "true",
-    #                    }
-    #                ),
-    #                partition_keys=[
-    #                    glue.CfnTable.ColumnProperty(
-    #                        name="outcome",
-    #                        comment="Job outcome",
-    #                        type="string",
-    #                    ),
-    #                    glue.CfnTable.ColumnProperty(
-    #                        name="platform",
-    #                        comment="Satellite platform",
-    #                        type="string",
-    #                    ),
-    #                    glue.CfnTable.ColumnProperty(
-    #                        name="acquisition_date",
-    #                        comment="Granule acquisition date",
-    #                        type="string",
-    #                    ),
-    #                    glue.CfnTable.ColumnProperty(
-    #                        name="granule_id",
-    #                        comment="Granule ID",
-    #                        type="string",
-    #                    ),
-    #                ],
-    #                table_type="EXTERNAL_TABLE",
-    #            ),
-    #        )
-    #
-    #        return table
-
-    def _create_granule_processing_events_raw_logs_crawler(
+    def _create_granule_processing_events_raw_logs_table(
         self,
         *,
         database_name: str,
         logs_bucket: s3.IBucket,
         logs_s3_prefix: str,
-        logs_event_queue_name: str,
-    ) -> None:
-        """Create raw logs Glue table and event driven Crawler
+    ) -> glue.CfnTable:
+        """Create raw logs Glue table for JSON formatted job logs
 
-        This Glue crawler is fed by a SQS queue containing S3 object events
-        to greatly reduce the amount of work the crawler needs to do to keep
-        up to date. See also:
-        https://aws.amazon.com/blogs/big-data/run-aws-glue-crawlers-using-amazon-s3-event-notifications/
+        This table uses partition projection on (outcome, platform, acquisition_date)
+        and assumes that:
+          - "outcome" is an enum (success | failure)
+          - "platform" is an enum (S30 | L30)
+          - "acquisition_date" is from 2013-01-01 to NOW
+
         """
-        # Create queue to receive S3 ObjectCreated and ObjectDeleted notifications
-        self.logs_event_queue = sqs.Queue(
-            self,
-            "LogsS3EventQueue",
-            queue_name=logs_event_queue_name,
-            enforce_ssl=True,
-            encryption=sqs.QueueEncryption.SQS_MANAGED,
-        )
-        logs_bucket.add_object_created_notification(
-            s3n.SqsDestination(self.logs_event_queue),
-            s3.NotificationKeyFilter(
-                prefix=f"{logs_s3_prefix}*",
+        # Do not partition on granule_id because we can't know it ahead of time and
+        # don't want to "inject" it since we'd require it for every query.
+        columns = [
+            COMMON_TABLE_COLUMNS["granule_id"],
+            COMMON_TABLE_COLUMNS["attempt"],
+            glue.CfnTable.ColumnProperty(
+                name="job_info",
+                type=ATHENA_STRUCT_AWS_BATCH_JOB_INFO,
             ),
-        )
-        logs_bucket.add_object_removed_notification(
-            s3n.SqsDestination(self.logs_event_queue),
-            s3.NotificationKeyFilter(
-                prefix=f"{logs_s3_prefix}*",
-            ),
+        ]
+        partition_keys = [
+            glue.CfnTable.ColumnProperty(name="outcome", type="string"),
+            glue.CfnTable.ColumnProperty(name="platform", type="string"),
+            glue.CfnTable.ColumnProperty(name="acquisition_date", type="string"),
+        ]
+
+        s3_location = logs_bucket.s3_url_for_object(logs_s3_prefix)
+        table_properties = {
+            "classification": "json",
+            "projection.enabled": "true",
+            "projection.outcome.type": "enum",
+            "projection.outcome.values": "success,failure",
+            "projection.platform.type": "enum",
+            "projection.platform.values": "S30,L30",
+            "projection.acquisition_date.type": "date",
+            "projection.acquisition_date.range": "2013-01-01,NOW",
+            "projection.acquisition_date.format": "yyyy-MM-dd",
+            "projection.acquisition_date.interval": "1",
+            "projection.acquisition_date.interval.unit": "DAYS",
+            "storage.location.template": f"{s3_location}/outcome=${{outcome}}/platform=${{platform}}/acquisition_date=${{acquisition_date}}/",
+        }
+
+        serde_info = glue.CfnTable.SerdeInfoProperty(
+            serialization_library="org.openx.data.jsonserde.JsonSerDe",
+            parameters={"case.insensitive": "true", "dots.in.keys": "false"},
         )
 
-        self.crawler_role = iam.Role(
-            self,
-            "GlueCrawlerRole",
-            assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AWSGlueServiceRole"
-                )
-            ],
+        storage_descriptor = glue.CfnTable.StorageDescriptorProperty(
+            columns=columns,
+            location=s3_location,
+            input_format="org.apache.hadoop.mapred.TextInputFormat",
+            output_format="org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            serde_info=serde_info,
+            compressed=False,
         )
-        logs_bucket.grant_read(
-            self.crawler_role,
-            objects_key_pattern=f"{logs_s3_prefix}*",
-        )
-        self.logs_event_queue.grant_consume_messages(self.crawler_role)
 
-        self.crawler = glue.CfnCrawler(
+        return glue.CfnTable(
             self,
-            "GranuleProcessingEventsRawLogsCrawler",
-            name="granule-processing-events-raw",
-            role=self.crawler_role.role_arn,
+            "GranuleProcessingEventsRawLogs",
+            catalog_id=Aws.ACCOUNT_ID,
             database_name=database_name,
-            table_prefix="granule-processing-events-raw",
-            targets=glue.CfnCrawler.TargetsProperty(
-                s3_targets=[
-                    glue.CfnCrawler.S3TargetProperty(
-                        path=logs_bucket.s3_url_for_object(key=logs_s3_prefix),
-                        event_queue_arn=self.logs_event_queue.queue_arn,
-                    ),
-                ],
-            ),
-            recrawl_policy=glue.CfnCrawler.RecrawlPolicyProperty(
-                recrawl_behavior="CRAWL_NEW_FOLDERS_ONLY",
-            ),
-            schedule=glue.CfnCrawler.ScheduleProperty(
-                schedule_expression="cron(0 0 * * ? *)",
+            table_input=glue.CfnTable.TableInputProperty(
+                name="granule-processing-events-raw",
+                table_type="EXTERNAL_TABLE",
+                description="Raw logs database for HLS-VI Historical Orchestration tasks.",
+                parameters=table_properties,
+                partition_keys=partition_keys,
+                storage_descriptor=storage_descriptor,
             ),
         )
+
+    def _create_granule_processing_events_raw_failures_view(
+        self,
+        *,
+        database_name: str,
+        raw_table: glue.CfnTable,
+    ) -> glue.CfnTable:
+        """Create enriched view of JSON formatted job logs for failures"""
+        sql = rf"""
+        SELECT
+            MAX_BY(outcome, attempt) AS outcome,
+            ARBITRARY(platform) AS platform,
+            ARBITRARY(date_parse(acquisition_date, '%Y-%m-%d')) AS acquisition_date,
+            granule_id AS granule_id,
+            MAX_BY(attempt, attempt) AS attempt,
+            ELEMENT_AT(MAX_BY(job_info.attempts, attempt), -1).container.exitcode AS exit_code,
+            from_unixtime(ELEMENT_AT(MAX_BY(job_info.attempts, attempt), -1).startedat / 1000) AS started_at,
+            from_unixtime(ELEMENT_AT(MAX_BY(job_info.attempts, attempt), -1).stoppedat / 1000) AS stopped_at,
+            ELEMENT_AT(MAX_BY(job_info.attempts, attempt), -1).statusreason AS status_reason,
+            ELEMENT_AT(MAX_BY(job_info.attempts, attempt), -1).container.logstreamname AS logstream_name,
+            MAX_BY("$path", attempt) AS key
+        FROM "{raw_table.table_input.name}"
+        WHERE outcome = 'failure'
+        GROUP BY granule_id
+        """
+
+        columns = [
+            COMMON_TABLE_COLUMNS["outcome"],
+            COMMON_TABLE_COLUMNS["platform"],
+            COMMON_TABLE_COLUMNS["acquisition_date"],
+            COMMON_TABLE_COLUMNS["granule_id"],
+            COMMON_TABLE_COLUMNS["attempt"],
+            glue.CfnTable.ColumnProperty(
+                name="exit_code",
+                comment="AWS Batch job exit code.",
+                type="int",
+            ),
+            glue.CfnTable.ColumnProperty(
+                name="started_at",
+                comment="AWS Batch job stop datetime.",
+                type="timestamp",
+            ),
+            glue.CfnTable.ColumnProperty(
+                name="stopped_at",
+                comment="AWS Batch job start datetime.",
+                type="timestamp",
+            ),
+            glue.CfnTable.ColumnProperty(
+                name="status_reason",
+                comment="AWS Batch job exit status reason.",
+                type="String",
+            ),
+            glue.CfnTable.ColumnProperty(
+                name="logstream_name",
+                comment="AWS Batch job logstream name.",
+                type="String",
+            ),
+            COMMON_TABLE_COLUMNS["key"],
+        ]
+
+        view_specification = {
+            "originalSql": sql,
+            "catalog": Aws.ACCOUNT_ID,
+            "schema": database_name,
+            "columns": [
+                {"name": column.name, "type": athena_type_to_presto(column.type)}
+                for column in columns
+            ],
+        }
+
+        sql_b64 = base64.b64encode(
+            json.dumps(view_specification).encode("utf-8")
+        ).decode("utf-8")
+
+        view = glue.CfnTable(
+            self,
+            "GranuleProcessingEventsFailuresView",
+            catalog_id=Aws.ACCOUNT_ID,
+            database_name=database_name,
+            table_input=glue.CfnTable.TableInputProperty(
+                name="granule-processing-events-failures",
+                table_type="VIRTUAL_VIEW",
+                parameters={"presto_view": "true", "comment": "Presto View"},
+                partition_keys=raw_table.table_input.partition_keys,
+                storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
+                    columns=columns,
+                ),
+                view_original_text=f"/* Presto View: {sql_b64} */",
+                view_expanded_text="/* Presto View */",
+            ),
+        )
+        view.apply_removal_policy(RemovalPolicy.DESTROY)
+        view.add_dependency(raw_table)
+        return view
