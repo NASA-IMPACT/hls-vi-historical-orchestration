@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import datetime as dt
 from pathlib import Path
 
 import awswrangler as wr
@@ -62,7 +63,8 @@ def create_report_plot(report: pd.DataFrame) -> plt.Figure:
         legend="topright",
     )
 
-    ax.set_title("HLS-VI Historical Processing Status")
+    today = dt.datetime.today().strftime("%Y-%m-%d")
+    ax.set_title(f"HLS-VI Historical Processing Status ({today})")
     ax.set_xlabel("Year")
     ax.set_xticklabels(
         data.index.strftime("%Y"),

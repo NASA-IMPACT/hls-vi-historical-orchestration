@@ -2,13 +2,18 @@
 """Redrive failures from failures queue into retry queue"""
 
 from dataclasses import dataclass
+from itertools import batched
+from uuid import uuid4
 
+import awswrangler
 import boto3
 import click
 from mypy_boto3_sqs import SQSClient
 
+from common.models import GranuleProcessingEvent
 
-@click.command()
+
+@click.group
 @click.option(
     "--environment",
     type=click.Choice(["dev", "prod"]),
@@ -23,16 +28,31 @@ from mypy_boto3_sqs import SQSClient
     required=False,
     help="Limit number of messages to redrive (optional)",
 )
-def redrive(environment: str, limit: int | None):
-    """Redrive failures into retry queue"""
+@click.pass_context
+def redrive(ctx: click.Context, environment: str, limit: int | None):
+    """Redrive failures into retry queue for reprocessing"""
     sqs = boto3.client("sqs")
+    ctx.obj = {
+        "environment": environment,
+        "sqs": sqs,
+        "failure_queue": get_queue_arn(
+            sqs, f"hls-vi-historical-orchestration-failures-{environment}"
+        ),
+        "retry_queue": get_queue_arn(
+            sqs, f"hls-vi-historical-orchestration-retry-{environment}"
+        ),
+        "limit": limit,
+    }
 
-    failure_queue = get_queue_arn(
-        sqs, f"hls-vi-historical-orchestration-failures-{environment}"
-    )
-    retry_queue = get_queue_arn(
-        sqs, f"hls-vi-historical-orchestration-retry-{environment}"
-    )
+
+@redrive.command()
+@click.pass_context
+def queue(ctx: click.Context):
+    """Redrive failures from DLQ into retry queue"""
+    sqs = ctx.obj["sqs"]
+    limit = ctx.obj["limit"]
+    failure_queue = ctx.obj["failure_queue"]
+    retry_queue = ctx.obj["retry_queue"]
 
     if limit is None:
         click.echo(
@@ -100,6 +120,69 @@ def redrive(environment: str, limit: int | None):
             redriven_task_count += len(successful_messages_to_delete)
 
         click.echo(f"Completed redriving {redriven_task_count} messages")
+
+
+@redrive.command()
+@click.pass_context
+@click.option(
+    "--max-attempts",
+    type=int,
+    default=3,
+    show_default=True,
+    help="Maximum attempts before giving up retrying granule processing event.",
+)
+def logs(ctx: click.Context, max_attempts: int):
+    """Redrive failures from Athena raw logs table into retry queue"""
+    # FIXME: pull table from settings
+    sqs = ctx.obj["sqs"]
+    limit = ctx.obj["limit"]
+    retry_queue = ctx.obj["retry_queue"]
+    environment = ctx.obj["environment"]
+
+    if limit is not None and not isinstance(limit, int):
+        raise ValueError(f"Limit must be an integer or null (got {limit}")
+    limit_clause = f"LIMIT {limit}" if limit is not None else ""
+
+    sql = f"""
+    SELECT granule_id, attempt
+    FROM "granule-processing-events-failures"
+    WHERE attempt < {max_attempts}
+    {limit_clause}
+    """
+
+    df_iter = awswrangler.athena.read_sql_query(
+        sql,
+        database=f"hls-vi-historical-logs-{environment}",
+        chunksize=1_000,
+    )
+
+    n_retried = 0
+    for df in df_iter:
+        # We can send 10 SQS messages in a batch, so iterate over 10 rows/batch
+        for row_batch in batched(df.itertuples(), 10):
+            events = [
+                GranuleProcessingEvent(
+                    granule_id=row.granule_id, attempt=int(row.attempt)
+                )
+                for row in row_batch
+            ]
+
+            sqs.send_message_batch(
+                QueueUrl=retry_queue.url,
+                Entries=[
+                    {
+                        "Id": str(uuid4()),
+                        "MessageBody": event.to_json(),
+                    }
+                    for event in events
+                ],
+            )
+
+            n_retried += len(row_batch)
+            if n_retried % 100 == 0:
+                click.echo(f"Sent {n_retried} messages to retry queue...")
+
+    click.echo(f"Complete! Retried {n_retried} granule processing events")
 
 
 @dataclass
