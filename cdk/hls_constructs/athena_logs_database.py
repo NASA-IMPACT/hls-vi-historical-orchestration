@@ -387,6 +387,7 @@ class AthenaLogsDatabase(Construct):
         raw_table: glue.CfnTable,
     ) -> glue.CfnTable:
         """Create enriched view of JSON formatted job logs for failures"""
+        assert isinstance(raw_table.table_input, glue.CfnTable.TableInputProperty)
         sql = rf"""
         SELECT
             MAX_BY(outcome, attempt) AS outcome,
