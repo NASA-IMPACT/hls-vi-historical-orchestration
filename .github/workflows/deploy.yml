@@ -2,6 +2,23 @@ name: Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+      message:
+        description: "Provide a message explaining this deploy"
+        required: true
+        type: string
+      PYTHON_VERSION:
+        description: "Deploy with this Python version"
+        required: true
+        type: string
   workflow_call:
     inputs:
       environment:
