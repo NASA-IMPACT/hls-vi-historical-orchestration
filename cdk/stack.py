@@ -157,6 +157,7 @@ class HlsViStack(Stack):
                 ),
             ],
             encryption=s3.BucketEncryption.S3_MANAGED,
+            enforce_ssl=True,
         )
 
         bucket_envvars = {
