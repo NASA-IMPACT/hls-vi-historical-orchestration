@@ -76,7 +76,7 @@ class BatchInfra(Construct):
             ec2_machine_image = ec2.MachineImage.lookup(name=ami_id)
         ecs_machine_image = batch.EcsMachineImage(
             image=ec2_machine_image,
-            image_type=batch.EcsMachineImageType.ECS_AL2,
+            image_type=batch.EcsMachineImageType.ECS_AL2023,
         )
         launch_template = ec2.LaunchTemplate(
             self,
